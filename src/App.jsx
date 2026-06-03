@@ -382,6 +382,7 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
   const [open, setOpen] = useState("ident");
   const [preview, setPreview] = useState(false);
   const [sending, setSending] = useState(false);
+  const [aviso, setAviso] = useState("");
 
   const setData = useCallback((k, v) => setFicha((f) => ({ ...f, data: { ...f.data, [k]: v } })), [setFicha]);
   const setProps = useCallback((list) => setFicha((f) => ({ ...f, propietarios: list })), [setFicha]);
@@ -395,10 +396,24 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
     return Math.round((done / total) * 100);
   }, [ficha.data]);
 
-  const puedeEnviar = ficha.data.tipo && ficha.data.direccion && ficha.propietarios.some((p) => p.nombre);
+  const faltan = useMemo(() => {
+    const arr = [];
+    if (!ficha.data.tipo) arr.push({ campo: "el tipo de inmueble", sec: "ident" });
+    if (!ficha.data.direccion || !ficha.data.direccion.trim()) arr.push({ campo: "la dirección", sec: "ubic" });
+    if (!ficha.propietarios.some((p) => p.nombre && p.nombre.trim())) arr.push({ campo: "el nombre de un propietario", sec: "ident" });
+    return arr;
+  }, [ficha.data.tipo, ficha.data.direccion, ficha.propietarios]);
+  const puedeEnviar = faltan.length === 0;
 
   const handleSend = () => {
-    if (!puedeEnviar || sending) return Promise.resolve(false);
+    if (sending) return Promise.resolve(false);
+    if (!puedeEnviar) {
+      setOpen(faltan[0].sec);
+      setAviso("Falta " + faltan.map((f) => f.campo).join(", "));
+      setTimeout(() => setAviso(""), 3500);
+      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+      return Promise.resolve(false);
+    }
     setSending(true);
     return new Promise((resolve) => {
       setTimeout(async () => {
@@ -411,7 +426,7 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
   };
 
   return (
-    <div className="min-h-full bg-[#F9FAFB] pb-32">
+    <div className="min-h-full bg-[#F9FAFB] pb-24">
       {/* Header con progreso */}
       <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-gray-100 px-5 pt-12 pb-3">
         <div className="flex items-center justify-between">
@@ -474,24 +489,18 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
 
       {/* Acciones */}
       <div className="px-4 mt-5 space-y-2.5">
-        <button onClick={() => setPreview(true)}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white border border-gray-200 font-semibold text-gray-700 active:scale-95 transition">
-          <Send size={18} /> Enviar correo
+        <button onClick={() => { if (puedeEnviar) { setPreview(true); } else { handleSend(); } }} disabled={sending}
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-[17px] text-white shadow-lg active:scale-95 transition"
+          style={{ background: C.naranja, boxShadow: "0 8px 24px rgba(207,115,27,.35)" }}>
+          {sending ? <><Loader2 size={20} className="animate-spin" /> Preparando…</> : <><Send size={19} /> Enviar correo</>}
         </button>
+        {aviso
+          ? <div className="text-center text-[12px] font-semibold" style={{ color: "#dc2626" }}>{aviso}</div>
+          : !puedeEnviar && <div className="text-center text-[12px] text-gray-400">Completa tipo, dirección y un propietario para enviar</div>}
         <button onClick={onSaveDraft}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white border border-gray-200 font-semibold text-gray-700 active:scale-95 transition">
           <Save size={18} /> Guardar borrador
         </button>
-      </div>
-
-      {/* Barra inferior de envío */}
-      <div className="fixed bottom-[68px] left-0 right-0 max-w-md mx-auto px-4 z-30">
-        <button onClick={handleSend} disabled={!puedeEnviar || sending}
-          className={`w-full py-4 rounded-2xl font-bold text-[17px] flex items-center justify-center gap-2 shadow-xl transition active:scale-95 ${puedeEnviar ? "text-white" : "bg-gray-200 text-gray-400"}`}
-          style={puedeEnviar ? { background: C.naranja, boxShadow: "0 8px 24px rgba(207,115,27,.4)" } : {}}>
-          {sending ? <><Loader2 size={20} className="animate-spin" /> Preparando…</> : <><Send size={19} /> Enviar a Julia</>}
-        </button>
-        {!puedeEnviar && <div className="text-center text-[12px] text-gray-400 mt-1.5">Completa tipo, dirección y un propietario para enviar</div>}
       </div>
 
       {preview && <PreviewModal ficha={ficha} onClose={() => setPreview(false)} onSend={handleSend} />}
