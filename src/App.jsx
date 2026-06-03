@@ -289,7 +289,7 @@ const Field = React.memo(function Field({ name, def, value, onChange }) {
   return null;
 });
 
-function TipoSelector({ value, onChange }) {
+const TipoSelector = React.memo(function TipoSelector({ value, onChange }) {
   return (
     <div>
       <label className={lblBase}>Tipo de inmueble</label>
@@ -308,10 +308,10 @@ function TipoSelector({ value, onChange }) {
       </div>
     </div>
   );
-}
+});
 
 /* ----------------------- Propietarios (array) -------------------- */
-function Propietarios({ list, onChange }) {
+const Propietarios = React.memo(function Propietarios({ list, onChange }) {
   const upd = (i, k, v) => onChange(list.map((p, idx) => idx === i ? { ...p, [k]: v } : p));
   return (
     <div className="space-y-3">
@@ -336,7 +336,7 @@ function Propietarios({ list, onChange }) {
       </button>
     </div>
   );
-}
+});
 
 /* ================================================================== */
 /*  PANTALLA: Selector de Agente                                       */
