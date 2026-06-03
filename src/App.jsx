@@ -232,7 +232,7 @@ async function abrirCorreo(ficha) {
 const inputBase = "w-full bg-white rounded-xl px-3.5 py-3 text-[15px] outline-none border border-gray-200 focus:border-[#cf731b] focus:ring-2 focus:ring-[#cf731b]/15 transition";
 const lblBase = "text-[12px] font-semibold text-gray-500 mb-1.5 block";
 
-function Field({ name, def, value, onChange }) {
+const Field = React.memo(function Field({ name, def, value, onChange }) {
   if (def.kind === "txt")
     return (
       <div>
@@ -287,7 +287,7 @@ function Field({ name, def, value, onChange }) {
       </div>
     );
   return null;
-}
+});
 
 function TipoSelector({ value, onChange }) {
   return (
@@ -451,37 +451,39 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
           const Icon = sec.icon; const isOpen = open === sec.id;
           return (
             <div key={sec.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <button onClick={() => setOpen(isOpen ? "" : sec.id)} className="w-full flex items-center gap-3 p-4 active:bg-gray-50 transition">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: isOpen ? C.tinta : C.naranjaSoft }}>
-                  <Icon size={18} style={{ color: isOpen ? C.naranja : C.naranja }} />
+              <button onClick={() => setOpen(isOpen ? "" : sec.id)} className="w-full flex items-center gap-3 p-4 active:bg-gray-50 transition-colors">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={{ background: isOpen ? C.tinta : C.naranjaSoft }}>
+                  <Icon size={18} style={{ color: C.naranja }} />
                 </div>
                 <div className="flex-1 text-left">
                   <div className="text-[10px] font-bold text-gray-400">SECCIÓN {sec.n}</div>
                   <div className="font-semibold text-gray-900 text-[15px]">{sec.title}</div>
                 </div>
-                <ChevronDown size={20} className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={20} className="text-gray-400 transition-transform duration-300" style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
               </button>
-              {isOpen && (
-                <div className="px-4 pb-5 pt-1 space-y-4 animate-[fade_.25s]">
-                  {sec.id === "ident" && (
-                    <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-2 text-[13px] text-gray-600">
-                      <User size={15} style={{ color: C.naranja }} />
-                      Agente captador: <span className="font-semibold text-gray-900">{agente.name}</span>
-                    </div>
-                  )}
-                  {Object.entries(sec.fields).map(([key, def]) =>
-                    def.kind === "tipo"
-                      ? <TipoSelector key={key} value={ficha.data.tipo} onChange={setData} />
-                      : <Field key={key} name={key} def={def} value={ficha.data[key]} onChange={setData} />
-                  )}
-                  {sec.id === "ident" && (
-                    <div>
-                      <div className="text-[12px] font-semibold text-gray-500 mb-2 mt-1">Propietarios</div>
-                      <Propietarios list={ficha.propietarios} onChange={setProps} />
-                    </div>
-                  )}
+              <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
+                <div className="overflow-hidden">
+                  <div className={`px-4 pb-5 pt-1 space-y-4 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0"}`}>
+                    {sec.id === "ident" && (
+                      <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-2 text-[13px] text-gray-600">
+                        <User size={15} style={{ color: C.naranja }} />
+                        Agente captador: <span className="font-semibold text-gray-900">{agente.name}</span>
+                      </div>
+                    )}
+                    {Object.entries(sec.fields).map(([key, def]) =>
+                      def.kind === "tipo"
+                        ? <TipoSelector key={key} value={ficha.data.tipo} onChange={setData} />
+                        : <Field key={key} name={key} def={def} value={ficha.data[key]} onChange={setData} />
+                    )}
+                    {sec.id === "ident" && (
+                      <div>
+                        <div className="text-[12px] font-semibold text-gray-500 mb-2 mt-1">Propietarios</div>
+                        <Propietarios list={ficha.propietarios} onChange={setProps} />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
