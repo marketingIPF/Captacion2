@@ -5,6 +5,7 @@ import {
   Search, Send, Trash2, Save, CheckCircle2, Clock, MailCheck, Plus, Minus,
   Building, Ruler, Sparkles, Layers, TreePine, Eye, Loader2, ArrowLeft, ArrowRight
 } from "lucide-react";
+import emailjs from "@emailjs/browser";
 
 /* ================================================================== */
 /*  DATOS REALES — Inmobiliaria Palanca                                */
@@ -40,6 +41,13 @@ const DESTINATARIO = "julia@inmobiliariapalanca.com";
 const STORE_DRAFTS = "ipf_fichas_draft";
 const STORE_SENT = "ipf_fichas_sent";
 const STORE_AGENT = "ipf_agente_activo";
+
+/* Configuración de EmailJS — envío directo sin cliente de correo */
+const EMAILJS = {
+  serviceId: "service_w45gzrf",
+  templateId: "template_xk0nwkd",
+  publicKey: "6le-qfYPBCb4c_POT",
+};
 
 const C = { naranja: "#cf731b", naranjaSoft: "#fbeede", tinta: "#111111", gris: "#6b7280" };
 
@@ -208,18 +216,33 @@ const esEscritorio = () => {
   return !movil;
 };
 
-async function abrirCorreo(ficha) {
+/* Respaldo: abre el cliente de correo y copia el texto (si es PC). */
+async function respaldoMailto(ficha) {
   const { asunto, cuerpo } = construirCorreo(ficha);
-  let copiado = false;
-  // En PC el mailto puede no estar configurado: copiamos el cuerpo para pegar en Gmail.
   if (esEscritorio()) {
-    try {
-      await navigator.clipboard.writeText(`Para: ${DESTINATARIO}\nAsunto: ${asunto}\n\n${cuerpo}`);
-      copiado = true;
-    } catch { copiado = false; }
+    try { await navigator.clipboard.writeText(`Para: ${DESTINATARIO}\nAsunto: ${asunto}\n\n${cuerpo}`); } catch {}
   }
   window.location.href = `mailto:${DESTINATARIO}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
-  return copiado;
+}
+
+/* Envío directo con EmailJS. Devuelve { ok, modo }:
+   - ok:true, modo:"directo"  → enviado sin abrir nada
+   - ok:false, modo:"respaldo" → falló EmailJS, se usó mailto + copia */
+async function enviarFicha(ficha) {
+  const { asunto, cuerpo } = construirCorreo(ficha);
+  try {
+    await emailjs.send(
+      EMAILJS.serviceId,
+      EMAILJS.templateId,
+      { asunto, cuerpo, to_email: DESTINATARIO, agente: ficha.agenteName },
+      { publicKey: EMAILJS.publicKey }
+    );
+    return { ok: true, modo: "directo" };
+  } catch (err) {
+    console.error("EmailJS falló, usando respaldo mailto:", err);
+    await respaldoMailto(ficha);
+    return { ok: false, modo: "respaldo" };
+  }
 }
 
 /* ================================================================== */
@@ -402,22 +425,22 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
   const puedeEnviar = faltan.length === 0;
 
   const handleSend = () => {
-    if (sending) return Promise.resolve(false);
+    if (sending) return Promise.resolve(null);
     if (!puedeEnviar) {
       setOpen(faltan[0].sec);
       setAviso("Falta " + faltan.map((f) => f.campo).join(", "));
       setTimeout(() => setAviso(""), 3500);
       if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
-      return Promise.resolve(false);
+      return Promise.resolve(null);
     }
     setSending(true);
     return new Promise((resolve) => {
       setTimeout(async () => {
+        const res = await enviarFicha(ficha);
         onSend(ficha);
-        const copiado = await abrirCorreo(ficha);
         setSending(false);
-        resolve(copiado);
-      }, 900);
+        resolve(res);
+      }, 300);
     });
   };
 
@@ -510,26 +533,30 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
 /* ----------------------- Modal de previsualización --------------- */
 function PreviewModal({ ficha, onClose, onSend }) {
   const { asunto, cuerpo } = construirCorreo(ficha);
-  const [copiado, setCopiado] = useState(false);
-  const pc = esEscritorio();
+  const [estado, setEstado] = useState("idle"); // idle | enviando | ok | respaldo
 
   const handleClick = async () => {
-    const ok = await onSend(); // ejecuta envío + copia y devuelve si copió
-    if (ok) {
-      setCopiado(true);
-      setTimeout(() => { setCopiado(false); onClose(); }, 1600);
+    if (estado === "enviando") return;
+    setEstado("enviando");
+    const res = await onSend();
+    if (!res) { setEstado("idle"); return; }
+    if (res.ok) {
+      setEstado("ok");
+      setTimeout(() => onClose(), 1800);
     } else {
-      onClose();
+      setEstado("respaldo");
     }
   };
 
+  const btnBg = estado === "ok" ? "#16a34a" : estado === "respaldo" ? "#d97706" : C.naranja;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end" onClick={estado === "enviando" ? undefined : onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
       <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-md mx-auto bg-white rounded-t-[28px] max-h-[85vh] flex flex-col animate-[slideup_.3s_cubic-bezier(.16,1,.3,1)]">
         <div className="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mt-3" />
         <div className="flex items-center justify-between px-6 pt-3 pb-2">
-          <h3 className="text-[18px] font-bold text-gray-900">Enviar correo</h3>
+          <h3 className="text-[18px] font-bold text-gray-900">Enviar a Julia</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"><X size={18} /></button>
         </div>
         <div className="px-6 overflow-y-auto pb-4 flex-1">
@@ -541,11 +568,20 @@ function PreviewModal({ ficha, onClose, onSend }) {
           <pre className="text-[12px] text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-xl p-3 mt-1 leading-relaxed">{cuerpo}</pre>
         </div>
         <div className="p-4 border-t border-gray-100">
-          <button onClick={handleClick} className="w-full py-3.5 rounded-2xl text-white font-bold flex items-center justify-center gap-2 active:scale-95 transition" style={{ background: copiado ? "#16a34a" : C.naranja }}>
-            {copiado ? <><Check size={19} strokeWidth={3} /> Texto copiado · abre Gmail y pega</> : <><Send size={18} /> Abrir cliente de correo</>}
+          <button onClick={handleClick} disabled={estado === "enviando" || estado === "ok"}
+            className="w-full py-3.5 rounded-2xl text-white font-bold flex items-center justify-center gap-2 active:scale-95 transition" style={{ background: btnBg }}>
+            {estado === "enviando" ? <><Loader2 size={19} className="animate-spin" /> Enviando…</>
+              : estado === "ok" ? <><Check size={19} strokeWidth={3} /> ¡Enviado a Julia!</>
+              : estado === "respaldo" ? <><MailCheck size={18} /> Abierto en tu correo</>
+              : <><Send size={18} /> Enviar ahora</>}
           </button>
-          {pc && !copiado && (
-            <p className="text-center text-[12px] text-gray-400 mt-2">En ordenador, además copiaremos el texto al portapapeles para que lo pegues en Gmail.</p>
+          {estado === "respaldo" && (
+            <p className="text-center text-[12px] mt-2" style={{ color: "#d97706" }}>
+              No se pudo enviar automáticamente. Abrimos tu correo{esEscritorio() ? " y copiamos el texto al portapapeles" : ""} como respaldo.
+            </p>
+          )}
+          {estado === "idle" && (
+            <p className="text-center text-[12px] text-gray-400 mt-2">Se enviará directamente a Julia, sin abrir ningún programa.</p>
           )}
         </div>
       </div>
@@ -670,6 +706,7 @@ export default function App() {
 
   useEffect(() => save(STORE_DRAFTS, drafts), [drafts]);
   useEffect(() => save(STORE_SENT, sent), [sent]);
+  useEffect(() => { try { emailjs.init({ publicKey: EMAILJS.publicKey }); } catch {} }, []);
 
   const selectAgent = (a) => { setAgente(a); save(STORE_AGENT, a); setFicha(emptyFicha(a)); setTab("ficha"); };
   const changeAgent = () => { setAgente(null); try { localStorage.removeItem(STORE_AGENT); } catch {} };
@@ -684,7 +721,7 @@ export default function App() {
     setTimeout(() => { setFicha(emptyFicha(agente)); setTab("historial"); }, 600);
   };
   const openDraft = (f) => { setFicha(f); setTab("ficha"); };
-  const resend = (f) => { abrirCorreo(f); };
+  const resend = (f) => { enviarFicha(f); };
   const del = (which, id) => {
     if (which === "drafts") setDrafts((p) => p.filter((d) => d.id !== id));
     else setSent((p) => p.filter((d) => d.id !== id));
