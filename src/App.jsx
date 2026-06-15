@@ -397,7 +397,7 @@ function AgentPicker({ onSelect }) {
 /* ================================================================== */
 /*  PANTALLA: Formulario (acordeón de secciones)                       */
 /* ================================================================== */
-function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
+function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend, onChangeAgent }) {
   const [open, setOpen] = useState("ident");
   const [preview, setPreview] = useState(false);
   const [sending, setSending] = useState(false);
@@ -484,9 +484,16 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend }) {
                 <div className="overflow-hidden">
                   <div className={`px-4 pb-5 pt-1 space-y-4 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0"}`}>
                     {sec.id === "ident" && (
-                      <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-2 text-[13px] text-gray-600">
-                        <User size={15} style={{ color: C.naranja }} />
-                        Agente captador: <span className="font-semibold text-gray-900">{agente.name}</span>
+                      <div>
+                        <label className="text-[12px] font-semibold text-gray-500 mb-1.5 block">Agente captador</label>
+                        <div className="relative">
+                          <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.naranja }} />
+                          <select value={agente.id} onChange={(e) => onChangeAgent(e.target.value)}
+                            className="w-full appearance-none bg-white rounded-xl pl-10 pr-9 py-3 text-[15px] font-medium text-gray-900 outline-none border border-gray-200 focus:border-[#cf731b] focus:ring-2 focus:ring-[#cf731b]/15 transition">
+                            {AGENTES.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                          </select>
+                          <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        </div>
                       </div>
                     )}
                     {Object.entries(sec.fields).map(([key, def]) =>
@@ -710,6 +717,12 @@ export default function App() {
 
   const selectAgent = (a) => { setAgente(a); save(STORE_AGENT, a); setFicha(emptyFicha(a)); setTab("ficha"); };
   const changeAgent = () => { setAgente(null); try { localStorage.removeItem(STORE_AGENT); } catch {} };
+  const setAgenteActivo = (id) => {
+    const a = AGENTES.find((x) => x.id === id);
+    if (!a) return;
+    setAgente(a); save(STORE_AGENT, a);
+    setFicha((f) => ({ ...f, agenteId: a.id, agenteName: a.name }));
+  };
 
   const saveDraft = () => {
     setDrafts((p) => { const ex = p.find((d) => d.id === ficha.id); return ex ? p.map((d) => d.id === ficha.id ? ficha : d) : [...p, ficha]; });
@@ -733,7 +746,7 @@ export default function App() {
         <AgentPicker onSelect={selectAgent} />
       ) : (
         <>
-          {tab === "ficha" && <Formulario agente={agente} ficha={ficha} setFicha={setFicha} onSaveDraft={saveDraft} onSend={sendFicha} />}
+          {tab === "ficha" && <Formulario agente={agente} ficha={ficha} setFicha={setFicha} onSaveDraft={saveDraft} onSend={sendFicha} onChangeAgent={setAgenteActivo} />}
           {tab === "historial" && <Historial drafts={drafts} sent={sent} onOpenDraft={openDraft} onResend={resend} onDelete={del} />}
           {tab === "perfil" && <Perfil agente={agente} sent={sent} onChange={changeAgent} />}
           <BottomNav tab={tab} setTab={setTab} />
