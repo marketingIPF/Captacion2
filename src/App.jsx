@@ -11,6 +11,8 @@ import emailjs from "@emailjs/browser";
 /*  DATOS REALES — Inmobiliaria Palanca                                */
 /* ================================================================== */
 const AGENTES = [
+  { id: "686387378", name: "Jose Miguel Palanca", role: "Codirector", email: "jose@inmobiliariapalanca.com", phone: "696460043" },
+  { id: "686536261", name: "Javier Palanca", role: "Codirector", email: "javi@inmobiliariapalanca.com", phone: "649258584" },
   { id: "689033887", name: "Alejandro Garcia", role: "Agente Comercial", email: "agarcia@inmobiliariapalanca.com", phone: "674054152" },
   { id: "686536270", name: "Amparo Orts Soriano", role: "Agente Comercial", email: "aorts@inmobiliariapalanca.com", phone: "663323259" },
   { id: "686536262", name: "Asunción Marco Aparisi", role: "Agente Comercial", email: "asun@inmobiliariapalanca.com", phone: "618644856" },
@@ -360,9 +362,10 @@ const Propietarios = React.memo(function Propietarios({ list, onChange }) {
 /* ================================================================== */
 /*  PANTALLA: Selector de Agente                                       */
 /* ================================================================== */
-function AgentPicker({ onSelect }) {
+function AgentPicker({ onSelect, ultimo }) {
   const [q, setQ] = useState("");
   const list = useMemo(() => AGENTES.filter((a) => a.name.toLowerCase().includes(q.toLowerCase()) || a.role.toLowerCase().includes(q.toLowerCase())), [q]);
+  const ultimoValido = useMemo(() => ultimo && AGENTES.find((a) => a.id === ultimo.id), [ultimo]);
   return (
     <div className="min-h-full flex flex-col bg-[#F9FAFB]">
       <div className="px-6 pt-16 pb-4">
@@ -376,6 +379,20 @@ function AgentPicker({ onSelect }) {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-5 pb-8">
+        {ultimoValido && !q && (
+          <button onClick={() => onSelect(ultimoValido)}
+            className="w-full flex items-center gap-3 bg-white rounded-2xl border-2 px-4 py-3.5 mb-3 active:scale-[0.99] transition text-left"
+            style={{ borderColor: C.naranja }}>
+            <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-[14px] shrink-0" style={{ background: C.tinta }}>
+              <span style={{ color: C.naranja }}>{ultimoValido.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: C.naranja }}>Continuar como</div>
+              <div className="font-semibold text-gray-900 truncate text-[15px]">{ultimoValido.name}</div>
+            </div>
+            <ChevronRight size={18} className="shrink-0" style={{ color: C.naranja }} />
+          </button>
+        )}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
           {list.map((a) => (
             <button key={a.id} onClick={() => onSelect(a)}
@@ -705,11 +722,12 @@ function BottomNav({ tab, setTab }) {
 /*  APP                                                                */
 /* ================================================================== */
 export default function App() {
-  const [agente, setAgente] = useState(() => load(STORE_AGENT, null));
+  const [agente, setAgente] = useState(null);
+  const ultimoAgente = useMemo(() => load(STORE_AGENT, null), []);
   const [drafts, setDrafts] = useState(() => load(STORE_DRAFTS, []));
   const [sent, setSent] = useState(() => load(STORE_SENT, []));
   const [tab, setTab] = useState("ficha");
-  const [ficha, setFicha] = useState(() => emptyFicha(load(STORE_AGENT, null)));
+  const [ficha, setFicha] = useState(() => emptyFicha(null));
 
   useEffect(() => save(STORE_DRAFTS, drafts), [drafts]);
   useEffect(() => save(STORE_SENT, sent), [sent]);
@@ -743,7 +761,7 @@ export default function App() {
   return (
     <div className="max-w-md mx-auto min-h-screen relative" style={{ fontFamily: "'Montserrat','-apple-system',BlinkMacSystemFont,'Segoe UI',sans-serif", background: "#F9FAFB" }}>
       {!agente ? (
-        <AgentPicker onSelect={selectAgent} />
+        <AgentPicker onSelect={selectAgent} ultimo={ultimoAgente} />
       ) : (
         <>
           {tab === "ficha" && <Formulario agente={agente} ficha={ficha} setFicha={setFicha} onSaveDraft={saveDraft} onSend={sendFicha} onChangeAgent={setAgenteActivo} />}
