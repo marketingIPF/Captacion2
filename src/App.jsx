@@ -3,10 +3,10 @@ import {
   Home, Building2, Store, Trees, Car, User, Users, ClipboardList, FileText,
   PlusCircle, ChevronRight, ChevronDown, X, Check, Phone, MapPin, Euro,
   Search, Send, Trash2, Save, CheckCircle2, Clock, MailCheck, Plus, Minus,
-  Building, Ruler, Sparkles, Layers, TreePine, Eye, Loader2, ArrowLeft, ArrowRight
+  Building, Ruler, Sparkles, Layers, TreePine, Eye, Loader2, ArrowLeft, ArrowRight,
+  Lock, RefreshCw
 } from "lucide-react";
 import emailjs from "@emailjs/browser";
-import { AGENTES, DESTINATARIO } from "./agentes";
 
 /* ================================================================== */
 /*  CONFIG                                                             */
@@ -14,6 +14,7 @@ import { AGENTES, DESTINATARIO } from "./agentes";
 const STORE_DRAFTS = "ipf_fichas_draft";
 const STORE_SENT = "ipf_fichas_sent";
 const STORE_AGENT = "ipf_agente_activo";
+const STORE_AGENTES_CACHE = "ipf_agentes_cache";
 
 /* Configuración de EmailJS — envío directo sin cliente de correo */
 const EMAILJS = {
@@ -190,30 +191,30 @@ const esEscritorio = () => {
 };
 
 /* Respaldo: abre el cliente de correo y copia el texto (si es PC). */
-async function respaldoMailto(ficha) {
+async function respaldoMailto(ficha, destinatario) {
   const { asunto, cuerpo } = construirCorreo(ficha);
   if (esEscritorio()) {
-    try { await navigator.clipboard.writeText(`Para: ${DESTINATARIO}\nAsunto: ${asunto}\n\n${cuerpo}`); } catch {}
+    try { await navigator.clipboard.writeText(`Para: ${destinatario}\nAsunto: ${asunto}\n\n${cuerpo}`); } catch {}
   }
-  window.location.href = `mailto:${DESTINATARIO}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+  window.location.href = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
 }
 
 /* Envío directo con EmailJS. Devuelve { ok, modo }:
    - ok:true, modo:"directo"  → enviado sin abrir nada
    - ok:false, modo:"respaldo" → falló EmailJS, se usó mailto + copia */
-async function enviarFicha(ficha) {
+async function enviarFicha(ficha, destinatario) {
   const { asunto, cuerpo } = construirCorreo(ficha);
   try {
     await emailjs.send(
       EMAILJS.serviceId,
       EMAILJS.templateId,
-      { asunto, cuerpo, to_email: DESTINATARIO, agente: ficha.agenteName },
+      { asunto, cuerpo, to_email: destinatario, agente: ficha.agenteName },
       { publicKey: EMAILJS.publicKey }
     );
     return { ok: true, modo: "directo" };
   } catch (err) {
     console.error("EmailJS falló, usando respaldo mailto:", err);
-    await respaldoMailto(ficha);
+    await respaldoMailto(ficha, destinatario);
     return { ok: false, modo: "respaldo" };
   }
 }
@@ -331,12 +332,63 @@ const Propietarios = React.memo(function Propietarios({ list, onChange }) {
 });
 
 /* ================================================================== */
+/*  PANTALLA: Acceso con PIN                                           */
+/* ================================================================== */
+function PinGate({ onUnlock }) {
+  const [pin, setPin] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (!pin.trim() || loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      const r = await fetch("/api/agentes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pin.trim() }),
+      });
+      if (!r.ok) {
+        setError(r.status === 401 ? "PIN incorrecto" : "Error de conexión, inténtalo de nuevo");
+        setLoading(false);
+        return;
+      }
+      onUnlock(await r.json());
+    } catch {
+      setError("Error de conexión, inténtalo de nuevo");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-full flex flex-col items-center justify-center bg-[#F9FAFB] px-8">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: C.tinta }}>
+        <Lock size={26} style={{ color: C.naranja }} />
+      </div>
+      <div className="text-[12px] font-bold tracking-[0.2em] uppercase" style={{ color: C.naranja }}>RK Palanca Fontestad</div>
+      <h1 className="text-[24px] font-extrabold leading-tight mt-2 text-gray-900 text-center">Acceso privado</h1>
+      <p className="text-gray-500 mt-1 text-[15px] text-center">Introduce el PIN del equipo para continuar</p>
+      <input value={pin} onChange={(e) => setPin(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()}
+        type="password" inputMode="numeric" placeholder="PIN" autoFocus
+        className="w-full mt-6 bg-white text-gray-900 placeholder-gray-400 rounded-2xl px-4 py-3.5 text-center text-[18px] tracking-widest outline-none border border-gray-200 focus:border-[#cf731b] focus:ring-2 focus:ring-[#cf731b]/15 transition" />
+      {error && <div className="text-center text-[13px] font-semibold mt-2" style={{ color: "#dc2626" }}>{error}</div>}
+      <button onClick={submit} disabled={loading || !pin.trim()}
+        className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-[16px] text-white shadow-lg active:scale-95 transition disabled:opacity-50"
+        style={{ background: C.naranja }}>
+        {loading ? <><Loader2 size={18} className="animate-spin" /> Comprobando…</> : "Entrar"}
+      </button>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /*  PANTALLA: Selector de Agente                                       */
 /* ================================================================== */
-function AgentPicker({ onSelect, ultimo }) {
+function AgentPicker({ agentes, onSelect, ultimo }) {
   const [q, setQ] = useState("");
-  const list = useMemo(() => AGENTES.filter((a) => a.name.toLowerCase().includes(q.toLowerCase()) || a.role.toLowerCase().includes(q.toLowerCase())), [q]);
-  const ultimoValido = useMemo(() => ultimo && AGENTES.find((a) => a.id === ultimo.id), [ultimo]);
+  const list = useMemo(() => agentes.filter((a) => a.name.toLowerCase().includes(q.toLowerCase()) || a.role.toLowerCase().includes(q.toLowerCase())), [q, agentes]);
+  const ultimoValido = useMemo(() => ultimo && agentes.find((a) => a.id === ultimo.id), [ultimo, agentes]);
   return (
     <div className="min-h-full flex flex-col bg-[#F9FAFB]">
       <div className="px-6 pt-16 pb-4">
@@ -385,7 +437,7 @@ function AgentPicker({ onSelect, ultimo }) {
 /* ================================================================== */
 /*  PANTALLA: Formulario (acordeón de secciones)                       */
 /* ================================================================== */
-function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend, onChangeAgent }) {
+function Formulario({ agente, agentes, destinatario, ficha, setFicha, onSaveDraft, onSend, onChangeAgent }) {
   const [open, setOpen] = useState("ident");
   const [preview, setPreview] = useState(false);
   const [sending, setSending] = useState(false);
@@ -424,7 +476,7 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend, onChangeAgen
     setSending(true);
     return new Promise((resolve) => {
       setTimeout(async () => {
-        const res = await enviarFicha(ficha);
+        const res = await enviarFicha(ficha, destinatario);
         onSend(ficha);
         setSending(false);
         resolve(res);
@@ -478,7 +530,7 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend, onChangeAgen
                           <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.naranja }} />
                           <select value={agente.id} onChange={(e) => onChangeAgent(e.target.value)}
                             className="w-full appearance-none bg-white rounded-xl pl-10 pr-9 py-3 text-[15px] font-medium text-gray-900 outline-none border border-gray-200 focus:border-[#cf731b] focus:ring-2 focus:ring-[#cf731b]/15 transition">
-                            {AGENTES.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                            {agentes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                           </select>
                           <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         </div>
@@ -519,14 +571,14 @@ function Formulario({ agente, ficha, setFicha, onSaveDraft, onSend, onChangeAgen
         </button>
       </div>
 
-      {preview && <PreviewModal ficha={ficha} onClose={() => setPreview(false)} onSend={handleSend} />}
+      {preview && <PreviewModal ficha={ficha} destinatario={destinatario} onClose={() => setPreview(false)} onSend={handleSend} />}
       <style>{`@keyframes fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }
 
 /* ----------------------- Modal de previsualización --------------- */
-function PreviewModal({ ficha, onClose, onSend }) {
+function PreviewModal({ ficha, destinatario, onClose, onSend }) {
   const { asunto, cuerpo } = construirCorreo(ficha);
   const [estado, setEstado] = useState("idle"); // idle | enviando | ok | respaldo
 
@@ -556,7 +608,7 @@ function PreviewModal({ ficha, onClose, onSend }) {
         </div>
         <div className="px-6 overflow-y-auto pb-4 flex-1">
           <div className="text-[12px] text-gray-400 font-semibold">PARA</div>
-          <div className="text-[14px] text-gray-900 mb-3">{DESTINATARIO}</div>
+          <div className="text-[14px] text-gray-900 mb-3">{destinatario}</div>
           <div className="text-[12px] text-gray-400 font-semibold">ASUNTO</div>
           <div className="text-[14px] text-gray-900 mb-3 font-medium">{asunto}</div>
           <div className="text-[12px] text-gray-400 font-semibold">CUERPO</div>
@@ -638,7 +690,7 @@ function Historial({ drafts, sent, onOpenDraft, onResend, onDelete }) {
 /* ================================================================== */
 /*  PANTALLA: Perfil                                                   */
 /* ================================================================== */
-function Perfil({ agente, sent, onChange }) {
+function Perfil({ agente, sent, onChange, onRefreshAgentes }) {
   const mias = sent.filter((f) => f.agenteId === agente.id);
   return (
     <div className="min-h-full bg-[#F9FAFB] pb-28">
@@ -658,6 +710,9 @@ function Perfil({ agente, sent, onChange }) {
         </div>
         <button onClick={onChange} className="w-full mt-4 py-4 rounded-2xl bg-white border border-gray-100 shadow-sm font-semibold text-red-500 active:scale-95 transition">
           Cambiar de agente
+        </button>
+        <button onClick={onRefreshAgentes} className="w-full mt-2.5 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border border-gray-100 shadow-sm font-semibold text-gray-600 active:scale-95 transition">
+          <RefreshCw size={16} /> Actualizar lista de agentes
         </button>
         <p className="text-center text-[11px] text-gray-400 mt-4 px-6">Las fichas se guardan en este dispositivo. Se conservan hasta que las elimines o se borre la caché del navegador.</p>
       </div>
@@ -693,6 +748,8 @@ function BottomNav({ tab, setTab }) {
 /*  APP                                                                */
 /* ================================================================== */
 export default function App() {
+  const [agentesData, setAgentesData] = useState(() => load(STORE_AGENTES_CACHE, null));
+  const [autoChecking, setAutoChecking] = useState(() => !!new URLSearchParams(window.location.search).get("pin"));
   const [agente, setAgente] = useState(null);
   const ultimoAgente = useMemo(() => load(STORE_AGENT, null), []);
   const [drafts, setDrafts] = useState(() => load(STORE_DRAFTS, []));
@@ -704,10 +761,36 @@ export default function App() {
   useEffect(() => save(STORE_SENT, sent), [sent]);
   useEffect(() => { try { emailjs.init({ publicKey: EMAILJS.publicKey }); } catch {} }, []);
 
+  const unlock = (data) => { save(STORE_AGENTES_CACHE, data); setAgentesData(data); };
+  const refreshAgentes = () => { try { localStorage.removeItem(STORE_AGENTES_CACHE); } catch {} setAgentesData(null); };
+
+  /* Si llegan por un link con ?pin=... (el que se comparte con el equipo), se valida
+     solo, sin mostrar ninguna pantalla — así el agente no escribe nada. */
+  useEffect(() => {
+    if (agentesData) return;
+    const pinUrl = new URLSearchParams(window.location.search).get("pin");
+    if (!pinUrl) return;
+    (async () => {
+      try {
+        const r = await fetch("/api/agentes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin: pinUrl }),
+        });
+        if (r.ok) unlock(await r.json());
+      } catch {}
+      const url = new URL(window.location.href);
+      url.searchParams.delete("pin");
+      window.history.replaceState({}, "", url.pathname + url.search);
+      setAutoChecking(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const selectAgent = (a) => { setAgente(a); save(STORE_AGENT, a); setFicha(emptyFicha(a)); setTab("ficha"); };
   const changeAgent = () => { setAgente(null); try { localStorage.removeItem(STORE_AGENT); } catch {} };
   const setAgenteActivo = (id) => {
-    const a = AGENTES.find((x) => x.id === id);
+    const a = agentesData.agentes.find((x) => x.id === id);
     if (!a) return;
     setAgente(a); save(STORE_AGENT, a);
     setFicha((f) => ({ ...f, agenteId: a.id, agenteName: a.name }));
@@ -723,7 +806,7 @@ export default function App() {
     setTimeout(() => { setFicha(emptyFicha(agente)); setTab("historial"); }, 600);
   };
   const openDraft = (f) => { setFicha(f); setTab("ficha"); };
-  const resend = (f) => { enviarFicha(f); };
+  const resend = (f) => { enviarFicha(f, agentesData.destinatario); };
   const del = (which, id) => {
     if (which === "drafts") setDrafts((p) => p.filter((d) => d.id !== id));
     else setSent((p) => p.filter((d) => d.id !== id));
@@ -731,13 +814,19 @@ export default function App() {
 
   return (
     <div className="max-w-md mx-auto min-h-screen relative" style={{ fontFamily: "'Montserrat','-apple-system',BlinkMacSystemFont,'Segoe UI',sans-serif", background: "#F9FAFB" }}>
-      {!agente ? (
-        <AgentPicker onSelect={selectAgent} ultimo={ultimoAgente} />
+      {autoChecking ? (
+        <div className="min-h-full flex items-center justify-center bg-[#F9FAFB]">
+          <Loader2 size={28} className="animate-spin" style={{ color: C.naranja }} />
+        </div>
+      ) : !agentesData ? (
+        <PinGate onUnlock={unlock} />
+      ) : !agente ? (
+        <AgentPicker agentes={agentesData.agentes} onSelect={selectAgent} ultimo={ultimoAgente} />
       ) : (
         <>
-          {tab === "ficha" && <Formulario agente={agente} ficha={ficha} setFicha={setFicha} onSaveDraft={saveDraft} onSend={sendFicha} onChangeAgent={setAgenteActivo} />}
+          {tab === "ficha" && <Formulario agente={agente} agentes={agentesData.agentes} destinatario={agentesData.destinatario} ficha={ficha} setFicha={setFicha} onSaveDraft={saveDraft} onSend={sendFicha} onChangeAgent={setAgenteActivo} />}
           {tab === "historial" && <Historial drafts={drafts} sent={sent} onOpenDraft={openDraft} onResend={resend} onDelete={del} />}
-          {tab === "perfil" && <Perfil agente={agente} sent={sent} onChange={changeAgent} />}
+          {tab === "perfil" && <Perfil agente={agente} sent={sent} onChange={changeAgent} onRefreshAgentes={refreshAgentes} />}
           <BottomNav tab={tab} setTab={setTab} />
         </>
       )}
