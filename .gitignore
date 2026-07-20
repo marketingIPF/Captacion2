@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+# Datos sensibles — no versionar
+.env
+.env.*
+!.env.example
+src/agentes.js
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.DS_Store

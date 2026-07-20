@@ -6,49 +6,20 @@ import {
   Building, Ruler, Sparkles, Layers, TreePine, Eye, Loader2, ArrowLeft, ArrowRight
 } from "lucide-react";
 import emailjs from "@emailjs/browser";
-
-/* ================================================================== */
-/*  DATOS REALES — Inmobiliaria Palanca                                */
-/* ================================================================== */
-const AGENTES = [
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Codirector", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Codirector", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "mariaredacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" },
-  { id: "REDACTED_ID", name: "Redacted Name", role: "Agente Comercial", email: "redacted@redacted.invalid", phone: "REDACTED_PHONE" }
-];
+import { AGENTES, DESTINATARIO } from "./agentes";
 
 /* ================================================================== */
 /*  CONFIG                                                             */
 /* ================================================================== */
-const DESTINATARIO = "redacted@redacted.invalid";
 const STORE_DRAFTS = "ipf_fichas_draft";
 const STORE_SENT = "ipf_fichas_sent";
 const STORE_AGENT = "ipf_agente_activo";
 
 /* Configuración de EmailJS — envío directo sin cliente de correo */
 const EMAILJS = {
-  serviceId: "REDACTED_SERVICE_ID",
-  templateId: "REDACTED_TEMPLATE_ID",
-  publicKey: "REDACTED_PUBLIC_KEY",
+  serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
+  templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+  publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
 };
 
 const C = { naranja: "#cf731b", naranjaSoft: "#fbeede", tinta: "#111111", gris: "#6b7280" };
