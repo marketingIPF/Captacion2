@@ -10,6 +10,7 @@ const NORMALIZADORES = { referencia: normalizarReferencia };
 /* Índice plano de todos los campos, para no recorrer el esquema en cada blur. */
 const TODOS_LOS_CAMPOS = new Map(SECCIONES.flatMap((s) => s.fields.map((f) => [f.key, f])));
 import { Avatar } from "../components/Avatar.jsx";
+import { Logo } from "../components/Logo.jsx";
 import { Campo } from "../components/Campo.jsx";
 import { RefCatastral } from "../components/RefCatastral.jsx";
 import { TipoSelector } from "../components/TipoSelector.jsx";
@@ -155,8 +156,13 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
     <div className="min-h-screen bg-ios-fondo pb-[calc(env(safe-area-inset-bottom)+96px)]">
       <header
         ref={refCabecera}
-        className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-ios-borde px-5 pt-12 pb-3"
+        className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-ios-borde px-5 pt-10 pb-3"
       >
+        {/* La cabecera es fija, así que el logo va pequeño: cada píxel de alto
+            se resta de las siete secciones que hay debajo. */}
+        <div className="flex justify-center pb-2.5">
+          <Logo orientacion="horizontal" tema="tinta" alto={20} />
+        </div>
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0 flex items-center gap-2.5">
             <Avatar agente={agente} tam={36} />
