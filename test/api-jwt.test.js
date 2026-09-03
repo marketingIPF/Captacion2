@@ -36,15 +36,34 @@ test("extrae el token de la cabecera Authorization", () => {
   assert.equal(tokenDe({ headers: {} }), null);
 });
 
-test("se aceptan las dos formas del emisor: con ruta y solo el origen", async () => {
-  const previo = process.env.NEON_AUTH_BASE_URL;
+test("una errata en NEON_AUTH_BASE_URL no deja el panel inservible", async () => {
+  const previos = [process.env.NEON_AUTH_BASE_URL, process.env.NEON_AUTH_JWKS_URL];
+  /* Exactamente el fallo que tuvimos: la "h" perdida al pegar en Vercel. */
+  process.env.NEON_AUTH_BASE_URL = "ttps://ep-x.neonauth.eu.aws.neon.tech/neondb/auth";
+  process.env.NEON_AUTH_JWKS_URL = "https://ep-x.neonauth.eu.aws.neon.tech/neondb/auth/.well-known/jwks.json";
+
+  const { emisoresValidos } = await import("../api/_jwt.js");
+  const lista = emisoresValidos();
+  assert.ok(lista.includes("https://ep-x.neonauth.eu.aws.neon.tech"), "el origen sale del JWKS");
+  assert.ok(
+    lista.includes("https://ep-x.neonauth.eu.aws.neon.tech/neondb/auth"),
+    "y también la base derivada del JWKS"
+  );
+  assert.ok(!lista.some((e) => e.startsWith("ttps")), "no cuela el valor con errata");
+  assert.ok(!lista.includes("null"), "ni el origen 'null' de una URL inválida");
+
+  [process.env.NEON_AUTH_BASE_URL, process.env.NEON_AUTH_JWKS_URL] = previos;
+});
+
+test("con las dos variables bien, se aceptan base y origen", async () => {
+  const previos = [process.env.NEON_AUTH_BASE_URL, process.env.NEON_AUTH_JWKS_URL];
   process.env.NEON_AUTH_BASE_URL = "https://ep-x.neonauth.eu.aws.neon.tech/neondb/auth";
+  process.env.NEON_AUTH_JWKS_URL = "https://ep-x.neonauth.eu.aws.neon.tech/neondb/auth/.well-known/jwks.json";
 
-  /* emisoresValidos() no se exporta; se comprueba a través del módulo. */
-  const { emisoresDePrueba } = await import("../api/_jwt.js");
-  const lista = emisoresDePrueba();
-  assert.ok(lista.includes("https://ep-x.neonauth.eu.aws.neon.tech/neondb/auth"), "la forma completa");
-  assert.ok(lista.includes("https://ep-x.neonauth.eu.aws.neon.tech"), "solo el origen");
+  const { emisoresValidos } = await import("../api/_jwt.js");
+  const lista = emisoresValidos();
+  assert.ok(lista.includes("https://ep-x.neonauth.eu.aws.neon.tech/neondb/auth"));
+  assert.ok(lista.includes("https://ep-x.neonauth.eu.aws.neon.tech"), "el iss real que emite Better Auth");
 
-  process.env.NEON_AUTH_BASE_URL = previo;
+  [process.env.NEON_AUTH_BASE_URL, process.env.NEON_AUTH_JWKS_URL] = previos;
 });

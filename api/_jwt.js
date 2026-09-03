@@ -8,21 +8,46 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 
 let jwks = null;
 
-/* Emisores aceptados. Better Auth firma con `iss` = su `baseURL` configurada,
-   y no sabemos si Neon la pone con la ruta (/neondb/auth) o solo el origen:
-   se aceptan las dos formas. La seguridad real la da la firma contra el JWKS
-   —que es específico de este proyecto—, la caducidad y la lista de correos;
-   el emisor es una comprobación adicional, no la barrera. */
-export function emisoresValidos() {
-  const base = process.env.NEON_AUTH_BASE_URL;
-  if (!base) return undefined;
-  const formas = new Set([base, base.replace(/\/+$/, "")]);
+/* Emisores aceptados.
+   Better Auth firma con `iss` = su baseURL configurada, que en la práctica es
+   el origen del servidor de auth. Se construye la lista a partir de las DOS
+   variables disponibles y se descarta lo que no sea una URL http(s) válida:
+   una errata al pegar el valor en Vercel (nos pasó: "ttps://…" sin la h)
+   dejaba la lista inservible y producía un 401 sin explicación. Derivarlo
+   también del JWKS —que es el que usa la verificación de firma— hace que el
+   panel siga funcionando y que el log señale la variable rota. */
+function urlValida(v) {
+  if (!v) return null;
   try {
-    formas.add(new URL(base).origin);
+    const u = new URL(v);
+    return u.protocol === "https:" || u.protocol === "http:" ? u : null;
   } catch {
-    /* si no es una URL válida, se queda con lo que haya */
+    return null;
   }
-  return [...formas];
+}
+
+export function emisoresValidos() {
+  const formas = new Set();
+  const base = process.env.NEON_AUTH_BASE_URL;
+  const jwks = process.env.NEON_AUTH_JWKS_URL;
+
+  const uBase = urlValida(base);
+  if (uBase) {
+    formas.add(base.replace(/\/+$/, ""));
+    formas.add(uBase.origin);
+  } else if (base) {
+    console.warn(`NEON_AUTH_BASE_URL no es una URL válida (${JSON.stringify(base.slice(0, 12))}…). Revisa la variable en Vercel.`);
+  }
+
+  /* El JWKS cuelga de la misma base: .../auth/.well-known/jwks.json */
+  const uJwks = urlValida(jwks);
+  if (uJwks) {
+    formas.add(uJwks.origin);
+    const baseDesdeJwks = jwks.replace(/\/\.well-known\/jwks\.json\/?$/, "");
+    if (baseDesdeJwks !== jwks) formas.add(baseDesdeJwks);
+  }
+
+  return formas.size ? [...formas] : undefined;
 }
 
 /* Claims del token SIN verificar, solo para diagnosticar un rechazo.
@@ -45,9 +70,6 @@ const conjuntoClaves = () => {
   }
   return jwks;
 };
-
-/* Alias con nombre explícito para los tests. */
-export const emisoresDePrueba = () => emisoresValidos();
 
 export function tokenDe(req) {
   const cabecera = req.headers?.authorization || req.headers?.Authorization || "";
