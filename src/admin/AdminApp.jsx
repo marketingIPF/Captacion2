@@ -45,13 +45,15 @@ export function AdminApp() {
       setTotal(lista.total);
       setResumen(res);
     } catch (e) {
-      /* 403 = cuenta sin permiso: no es un fallo de sesión, hay que decirlo. */
-      if (e.status === 401) salir();
-      else setError(e.message);
+      /* Antes, cualquier 401 cerraba la sesión de Google y devolvía al login,
+         así que un fallo del servidor parecía un problema de credenciales y
+         además borraba la sesión buena. Ahora se muestra el error y se deja
+         reintentar: solo `useSession` decide si hay sesión o no. */
+      setError(e.message);
     } finally {
       setCargando(false);
     }
-  }, [sesion, busqueda, filtro, pagina, salir]);
+  }, [sesion, busqueda, filtro, pagina]);
 
   /* Con la sesión ya establecida, el verificador de la URL sobra. Se limpia
      aquí y no solo en el callback de éxito del cliente, para que no quede en
@@ -179,11 +181,22 @@ export function AdminApp() {
         {error && (
           <div role="alert" className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 mb-4">
             <p className="text-red-700 text-[13.5px] font-semibold">{error}</p>
-            {error.includes("acceso") && (
-              <button type="button" onClick={salir} className="mt-1.5 text-[12.5px] font-semibold text-red-700 underline underline-offset-2">
+            <div className="flex gap-3 mt-1.5">
+              <button
+                type="button"
+                onClick={cargar}
+                className="text-[12.5px] font-semibold text-red-700 underline underline-offset-2"
+              >
+                Reintentar
+              </button>
+              <button
+                type="button"
+                onClick={salir}
+                className="text-[12.5px] font-semibold text-red-700 underline underline-offset-2"
+              >
                 Salir y entrar con otra cuenta
               </button>
-            )}
+            </div>
           </div>
         )}
 

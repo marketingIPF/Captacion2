@@ -35,3 +35,16 @@ test("extrae el token de la cabecera Authorization", () => {
   assert.equal(tokenDe({ headers: { authorization: "Bearer   " } }), null, "token vacío");
   assert.equal(tokenDe({ headers: {} }), null);
 });
+
+test("se aceptan las dos formas del emisor: con ruta y solo el origen", async () => {
+  const previo = process.env.NEON_AUTH_BASE_URL;
+  process.env.NEON_AUTH_BASE_URL = "https://ep-x.neonauth.eu.aws.neon.tech/neondb/auth";
+
+  /* emisoresValidos() no se exporta; se comprueba a través del módulo. */
+  const { emisoresDePrueba } = await import("../api/_jwt.js");
+  const lista = emisoresDePrueba();
+  assert.ok(lista.includes("https://ep-x.neonauth.eu.aws.neon.tech/neondb/auth"), "la forma completa");
+  assert.ok(lista.includes("https://ep-x.neonauth.eu.aws.neon.tech"), "solo el origen");
+
+  process.env.NEON_AUTH_BASE_URL = previo;
+});

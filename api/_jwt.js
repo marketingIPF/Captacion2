@@ -7,6 +7,36 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
    entraría, porque el proveedor OAuth es compartido. */
 
 let jwks = null;
+
+/* Emisores aceptados. Better Auth firma con `iss` = su `baseURL` configurada,
+   y no sabemos si Neon la pone con la ruta (/neondb/auth) o solo el origen:
+   se aceptan las dos formas. La seguridad real la da la firma contra el JWKS
+   —que es específico de este proyecto—, la caducidad y la lista de correos;
+   el emisor es una comprobación adicional, no la barrera. */
+export function emisoresValidos() {
+  const base = process.env.NEON_AUTH_BASE_URL;
+  if (!base) return undefined;
+  const formas = new Set([base, base.replace(/\/+$/, "")]);
+  try {
+    formas.add(new URL(base).origin);
+  } catch {
+    /* si no es una URL válida, se queda con lo que haya */
+  }
+  return [...formas];
+}
+
+/* Claims del token SIN verificar, solo para diagnosticar un rechazo.
+   No se registra el email ni el resto del contenido: son datos personales. */
+function pistasDelToken(token) {
+  try {
+    const [cabecera, cuerpo] = token.split(".");
+    const h = JSON.parse(Buffer.from(cabecera, "base64url").toString());
+    const p = JSON.parse(Buffer.from(cuerpo, "base64url").toString());
+    return `alg=${h.alg} kid=${h.kid} iss=${p.iss} aud=${p.aud} exp=${p.exp} claims=[${Object.keys(p).join(",")}]`;
+  } catch {
+    return "no se pudo leer el token";
+  }
+}
 const conjuntoClaves = () => {
   if (!jwks) {
     const url = process.env.NEON_AUTH_JWKS_URL;
@@ -15,6 +45,9 @@ const conjuntoClaves = () => {
   }
   return jwks;
 };
+
+/* Alias con nombre explícito para los tests. */
+export const emisoresDePrueba = () => emisoresValidos();
 
 export function tokenDe(req) {
   const cabecera = req.headers?.authorization || req.headers?.Authorization || "";
@@ -43,11 +76,17 @@ export async function verificarToken(token) {
   let payload;
   try {
     ({ payload } = await jwtVerify(token, conjuntoClaves(), {
-      issuer: process.env.NEON_AUTH_BASE_URL || undefined,
+      issuer: emisoresValidos(),
       clockTolerance: 30,
     }));
   } catch (err) {
     const expirado = err?.code === "ERR_JWT_EXPIRED";
+    if (!expirado) {
+      /* Sin esto, un rechazo del token es una caja negra: 401 y nada más. */
+      console.error(
+        `Token rechazado (${err?.code || err?.name}): ${err?.message} · ${pistasDelToken(token)} · esperados=${JSON.stringify(emisoresValidos())}`
+      );
+    }
     return {
       ok: false,
       code: 401,
