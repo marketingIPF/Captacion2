@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ChevronDown, Send, Save, User, AlertCircle, Check } from "lucide-react";
 import { SECCIONES } from "../data/secciones.js";
 import { camposAplicables, calcularProgreso, revisarFicha, seccionAplica } from "../lib/ficha.js";
@@ -13,6 +13,9 @@ import { useToast } from "../hooks/useToast.jsx";
 
 export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft, onEnviada, onChangeAgent }) {
   const [abierta, setAbierta] = useState("ident");
+  const refSeccion = useRef({});   // la tarjeta de cada sección
+  const refPanel = useRef({});     // su contenido plegable
+  const refCabecera = useRef(null);
   const [preview, setPreview] = useState(false);
   const [tocados, setTocados] = useState({});
   const [mostrarErrores, setMostrarErrores] = useState(false);
@@ -27,6 +30,55 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
     [setFicha]
   );
   const marcarTocado = useCallback((k) => setTocados((t) => ({ ...t, [k]: true })), []);
+
+  /* Lleva la sección recién abierta justo debajo de la cabecera fija.
+     `ajuste` descuenta la altura del panel que se está cerrando cuando está
+     por encima: al plegarse, todo lo de abajo sube, y sin ese descuento el
+     scroll se quedaría corto. */
+  const irASeccion = useCallback((secId, ajuste = 0) => {
+    const tarjeta = refSeccion.current[secId];
+    if (!tarjeta) return;
+    const altoCabecera = refCabecera.current?.getBoundingClientRect().height ?? 0;
+    const destino =
+      tarjeta.getBoundingClientRect().top + window.scrollY - altoCabecera - ajuste - 8;
+    const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: Math.max(0, destino), behavior: suave ? "smooth" : "auto" });
+  }, []);
+
+  /* Abrir o cerrar una sección. Al abrir, se mide antes lo que va a colapsar. */
+  const alternarSeccion = useCallback(
+    (secId) => {
+      const cerrandoLaMisma = abierta === secId;
+      const siguiente = cerrandoLaMisma ? "" : secId;
+
+      let ajuste = 0;
+      if (!cerrandoLaMisma && abierta) {
+        const panelQueSeCierra = refPanel.current[abierta];
+        const tarjetaDestino = refSeccion.current[secId];
+        if (panelQueSeCierra && tarjetaDestino) {
+          const arriba =
+            panelQueSeCierra.getBoundingClientRect().top < tarjetaDestino.getBoundingClientRect().top;
+          if (arriba) ajuste = panelQueSeCierra.getBoundingClientRect().height;
+        }
+      }
+
+      setAbierta(siguiente);
+      if (!siguiente) return;
+      /* Un frame para que React haya pintado el panel abierto. */
+      requestAnimationFrame(() => irASeccion(secId, ajuste));
+    },
+    [abierta, irASeccion]
+  );
+
+  /* Salto a una sección concreta (al pulsar un error, por ejemplo). Aquí se
+     espera a que termine el plegado, porque el ajuste no se puede medir. */
+  const abrirYSaltar = useCallback(
+    (secId) => {
+      setAbierta(secId);
+      setTimeout(() => irASeccion(secId), 320);
+    },
+    [irASeccion]
+  );
 
   /* Relleno desde el Catastro: sobrescribe lo que hubiera escrito el agente,
      porque el dato oficial manda. El tipo de inmueble es la excepción: decide
@@ -68,9 +120,8 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
     }
     setMostrarErrores(true);
     const primero = errores[0];
-    setAbierta(primero.sec);
     toast(primero.msg, "error");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    abrirYSaltar(primero.sec);
   };
 
   const guardarBorrador = () => {
@@ -80,7 +131,10 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
 
   return (
     <div className="min-h-screen bg-ios-fondo pb-[calc(env(safe-area-inset-bottom)+96px)]">
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-ios-borde px-5 pt-12 pb-3">
+      <header
+        ref={refCabecera}
+        className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-ios-borde px-5 pt-12 pb-3"
+      >
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0 flex items-center gap-2.5">
             <Avatar agente={agente} tam={36} />
@@ -115,11 +169,15 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
           const panelId = `panel-${sec.id}`;
 
           return (
-            <section key={sec.id} className="bg-white rounded-2xl shadow-sm border border-ios-borde overflow-hidden">
+            <section
+              key={sec.id}
+              ref={(el) => { refSeccion.current[sec.id] = el; }}
+              className="bg-white rounded-2xl shadow-sm border border-ios-borde overflow-hidden"
+            >
               <h2>
                 <button
                   type="button"
-                  onClick={() => setAbierta(isOpen ? "" : sec.id)}
+                  onClick={() => alternarSeccion(sec.id)}
                   aria-expanded={isOpen}
                   aria-controls={panelId}
                   className="w-full flex items-center gap-3 p-4 active:bg-ios-fondo transition-colors text-left"
@@ -139,7 +197,9 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
                     <span className="flex items-center gap-1 text-[11px] font-bold text-red-600 shrink-0">
                       <AlertCircle size={14} aria-hidden="true" />
                       {nErrores}
-                      <span className="sr-only">errores en esta sección</span>
+                      <span className="sr-only">
+                        {nErrores === 1 ? "error en esta sección" : "errores en esta sección"}
+                      </span>
                     </span>
                   )}
                   <ChevronDown
@@ -153,6 +213,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
 
               <div
                 id={panelId}
+                ref={(el) => { refPanel.current[sec.id] = el; }}
                 className="grid transition-[grid-template-rows] duration-300 ease-out"
                 style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
               >
@@ -238,7 +299,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
               <li key={i}>
                 <button
                   type="button"
-                  onClick={() => setAbierta(e.sec)}
+                  onClick={() => abrirYSaltar(e.sec)}
                   className="text-[12.5px] text-red-700 underline underline-offset-2 text-left"
                 >
                   {e.msg}
