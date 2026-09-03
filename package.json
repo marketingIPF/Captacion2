@@ -19,7 +19,9 @@
     "db:probar": "node --env-file=.env dev/probar-api.mjs",
     "dev:login": "MOCK_API=1 vite",
     "db:prueba": "node --env-file=.env dev/fichas-de-prueba.mjs",
-    "db:prueba:borrar": "node --env-file=.env dev/fichas-de-prueba.mjs --borrar"
+    "db:prueba:borrar": "node --env-file=.env dev/fichas-de-prueba.mjs --borrar",
+    "iagestion:previa": "node --env-file=.env dev/iagestion-vista-previa.mjs",
+    "iagestion:tipos": "node --env-file=.env dev/iagestion-tipos.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
