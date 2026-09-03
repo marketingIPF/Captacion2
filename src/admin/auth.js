@@ -16,9 +16,63 @@ const SESION_SIMULADA = {
   user: { name: "Julia (simulado)", email: "julia@inmobiliariapalanca.com" },
 };
 
+/* ── El verificador de sesión ────────────────────────────────────────────
+   Neon Auth vive en su propio dominio, así que su cookie de sesión es de
+   terceros (SameSite=None; Partitioned). Al volver de Google, la cookie queda
+   escrita en la partición del dominio de Neon, no en la nuestra, y desde
+   nuestra página no se ve. Para salvar ese salto, Neon devuelve un
+   `neon_auth_session_verifier` en la URL de vuelta:
+
+     /admin?neon_auth_session_verifier=…
+
+   Hay que reenviarlo en la petición de sesión. La respuesta ya deja la cookie
+   en NUESTRA partición, y a partir de ahí el flujo normal de cookies
+   funciona. Sin este paso el panel pide la sesión sin credenciales, recibe
+   null y devuelve al usuario a la pantalla de acceso — exactamente el bucle
+   que veíamos.
+
+   Se guarda en memoria en la primera lectura para que siga disponible
+   después de limpiar la URL. */
+const PARAM_VERIFICADOR = "neon_auth_session_verifier";
+let verificador = null;
+let verificadorLeido = false;
+
+function verificadorDeSesion() {
+  if (!verificadorLeido && typeof window !== "undefined") {
+    verificador = new URLSearchParams(window.location.search).get(PARAM_VERIFICADOR);
+    verificadorLeido = true;
+  }
+  return verificador;
+}
+
+/* Quita el verificador de la barra de direcciones: ya está canjeado y no
+   tiene por qué quedar en el historial ni en una captura de pantalla. */
+export function limpiarUrl() {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(PARAM_VERIFICADOR)) return;
+  url.searchParams.delete(PARAM_VERIFICADOR);
+  window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+}
+
+const conVerificador = (entrada) => {
+  const v = verificadorDeSesion();
+  if (!v) return entrada;
+  const url = typeof entrada === "string" ? new URL(entrada, baseURL) : entrada;
+  url.searchParams.set(PARAM_VERIFICADOR, v);
+  return url;
+};
+
 export const auth = createAuthClient({
   baseURL,
-  fetchOptions: { credentials: "include" },
+  fetchOptions: {
+    credentials: "include",
+    onRequest: (ctx) => {
+      if (!verificadorDeSesion()) return;
+      return { ...ctx, url: conVerificador(ctx.url) };
+    },
+    onSuccess: () => limpiarUrl(),
+  },
 });
 
 export const useSesion = () => {
@@ -44,7 +98,7 @@ export async function tokenDeSesion({ forzar = false } = {}) {
   const ahora = Date.now();
   if (!forzar && cache.token && ahora < cache.expira - 30_000) return cache.token;
 
-  const r = await fetch(`${baseURL}/token`, { credentials: "include" });
+  const r = await fetch(conVerificador(`${baseURL}/token`), { credentials: "include" });
   if (!r.ok) {
     cache = { token: null, expira: 0 };
     return null;
@@ -65,4 +119,10 @@ export async function tokenDeSesion({ forzar = false } = {}) {
   return token;
 }
 
-export const olvidarToken = () => { cache = { token: null, expira: 0 }; };
+export const olvidarToken = () => {
+  cache = { token: null, expira: 0 };
+  /* Al cerrar sesión el verificador ya no vale: si se reutilizara, un
+     "salir" seguido de un "entrar" podría revivir la sesión anterior. */
+  verificador = null;
+  verificadorLeido = true;
+};

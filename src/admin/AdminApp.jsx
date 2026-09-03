@@ -3,7 +3,7 @@ import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, Chevr
 import { Logo } from "../components/Logo.jsx";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
 import { llamar, ESTADOS, estadoDe } from "./api.js";
-import { useSesion, salir as cerrarSesion, olvidarToken } from "./auth.js";
+import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl } from "./auth.js";
 import { FichaDetalle } from "./FichaDetalle.jsx";
 import { AdminLogin } from "./AdminLogin.jsx";
 
@@ -52,6 +52,13 @@ export function AdminApp() {
       setCargando(false);
     }
   }, [sesion, busqueda, filtro, pagina, salir]);
+
+  /* Con la sesión ya establecida, el verificador de la URL sobra. Se limpia
+     aquí y no solo en el callback de éxito del cliente, para que no quede en
+     la barra de direcciones si la respuesta llega por otro camino. */
+  useEffect(() => {
+    if (sesion) limpiarUrl();
+  }, [sesion]);
 
   /* Debounce de la búsqueda: no una consulta por tecla. */
   useEffect(() => {
