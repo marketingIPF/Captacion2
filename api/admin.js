@@ -21,6 +21,10 @@ export default async function handler(req, res) {
     res.status(400).json({ error: "Acción desconocida" });
   } catch (err) {
     console.error(`Error en la acción "${accion}"`, err);
+    if (err?.esConfiguracion) {
+      res.status(503).json({ error: "El panel no está bien configurado: falta DATABASE_URL en este entorno." });
+      return;
+    }
     res.status(500).json({ error: "Error consultando la base de datos" });
   }
 }

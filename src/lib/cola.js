@@ -55,6 +55,7 @@ export async function enviarAlServidor(ficha, pin) {
       ok: false,
       tipo: "servidor",
       estado: r.status,
+      causa: cuerpo.causa || null,
       error: cuerpo.error || `La oficina devolvió un error ${r.status}`,
     };
   } catch {

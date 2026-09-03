@@ -31,6 +31,18 @@ test("un 503 del servidor NO se confunde con falta de conexión", async () => {
   assert.match(r.error, /DATABASE_URL/);
 });
 
+test("distingue una variable sin configurar de una base de datos caída", async () => {
+  globalThis.fetch = async () => respuesta(503, {
+    error: "El servidor no está bien configurado. Avisa a la oficina: la ficha no se perderá.",
+    causa: "configuracion",
+  });
+  const r = await enviarAlServidor(ficha("cfg"), "pin");
+  assert.equal(r.tipo, "servidor");
+  assert.equal(r.causa, "configuracion", "la categoría llega al cliente para poder explicarla");
+  assert.match(r.error, /Avisa a la oficina/);
+  assert.ok(!/DATABASE_URL/.test(r.error), "el error interno no debe filtrarse al agente");
+});
+
 test("un fallo de red sí es offline", async () => {
   globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
   const r = await enviarAlServidor(ficha("b"), "pin");

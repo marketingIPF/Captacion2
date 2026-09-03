@@ -46,6 +46,18 @@ export default async function handler(req, res) {
     res.status(200).json({ ok: true, id: row.id, recibida: row.recibida_en });
   } catch (err) {
     console.error("Error guardando la ficha", err);
-    res.status(503).json({ error: "No se pudo guardar la ficha. Se reintentará." });
+    /* No se filtra el error interno al cliente, pero sí la categoría: una y
+       otra se arreglan de forma distinta y el agente merece saber cuál es. */
+    if (err?.esConfiguracion) {
+      res.status(503).json({
+        error: "El servidor no está bien configurado. Avisa a la oficina: la ficha no se perderá.",
+        causa: "configuracion",
+      });
+      return;
+    }
+    res.status(503).json({
+      error: "La base de datos no responde ahora mismo. Se reintentará solo.",
+      causa: "basedatos",
+    });
   }
 }

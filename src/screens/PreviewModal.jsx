@@ -118,9 +118,8 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
               </span>
             ) : estado === "servidor" ? (
               <span className="text-amber-700">
-                Tu conexión está bien, pero la oficina no ha podido guardarla
-                ({detalle || "error del servidor"}). La ficha está guardada aquí y se
-                reintentará sola. Si sigue fallando, avisa a la oficina.
+                Tu conexión está bien. {detalle || "La oficina no ha podido guardarla."}{" "}
+                La ficha está guardada en este móvil y se reintentará sola.
               </span>
             ) : estado === "ok" ? (
               <span className="text-green-700">La oficina ya la tiene.</span>
