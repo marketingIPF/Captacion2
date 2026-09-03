@@ -40,6 +40,42 @@ export function bloquesFicha(ficha) {
   return bloques;
 }
 
+/* Dirección en una sola línea, como la piden los portales y los CRM:
+   "Calle Colón 26, Esc. 1, 2ª, pta. 02 · 46004 Valencia". */
+export function direccionCompleta(ficha) {
+  const d = ficha.data;
+  const calle = [d.direccion, d.numero].filter(Boolean).join(" ");
+  const interior = [
+    d.bloque && `Esc. ${d.bloque}`,
+    d.planta && `Pl. ${d.planta}`,
+    d.puerta && `Pta. ${d.puerta}`,
+  ].filter(Boolean).join(", ");
+  const localidad = [d.cp, d.poblacion].filter(Boolean).join(" ");
+  return [calle, interior].filter(Boolean).join(", ") + (localidad ? ` · ${localidad}` : "");
+}
+
+/* Las cifras que se miran primero, no las que hay que buscar en una lista. */
+export function cifrasClave(ficha) {
+  const d = ficha.data;
+  const puestos = [
+    ["M² construidos", d.mConstruidos, "m²"],
+    ["M² útiles", d.mUtiles, "m²"],
+    ["Parcela", d.mParcela, "m²"],
+    ["Dormitorios", d.dormitorios, ""],
+    ["Baños", d.banos, ""],
+    ["Planta", d.planta, ""],
+    ["Año", d.anio, ""],
+  ];
+  return puestos
+    .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "")
+    .map(([etiqueta, valor, unidad]) => ({ etiqueta, valor: String(valor), unidad }));
+}
+
+/* Un bloque como texto plano, para copiarlo de golpe. */
+export function bloqueComoTexto(bloque) {
+  return bloque.filas.map(([k, v]) => `${k}: ${v}`).join("\n");
+}
+
 export function tituloFicha(ficha) {
   const d = ficha.data;
   return `${d.tipo || "Inmueble"} · ${resumenFicha(ficha)}`;

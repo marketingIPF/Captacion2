@@ -218,6 +218,10 @@ for (let i = 0; i < 47; i++) {
       estado: "Buen estado",
       ascensor: i % 2 ? "Sí" : "No",
       notasInternas: "Ficha de ejemplo generada por el simulador de desarrollo.",
+      descripcionPublica:
+        "Vivienda luminosa y bien comunicada, reformada recientemente, con amplio salón " +
+        "y cocina independiente. Finca con ascensor a cota cero. A cinco minutos de metro, " +
+        "colegios y supermercados. Disponible para visitas.",
     },
   });
 }

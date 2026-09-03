@@ -117,3 +117,30 @@ test("el segundo número de vía solo se añade si es real", () => {
 test("limpiarRef normaliza lo que teclea el agente", () => {
   assert.equal(limpiarRef(" 6121104-yj2762a "), "6121104YJ2762A");
 });
+
+test("la dirección se compone en una línea, como la piden los portales", async () => {
+  const { direccionCompleta, cifrasClave, bloqueComoTexto } = await import("../src/lib/resumen.js");
+
+  const ficha = (data) => ({ data, propietarios: [] });
+  assert.equal(
+    direccionCompleta(ficha({ direccion: "Calle Colón", numero: "26", bloque: "1", planta: "2", puerta: "02", cp: "46004", poblacion: "Valencia" })),
+    "Calle Colón 26, Esc. 1, Pl. 2, Pta. 02 · 46004 Valencia"
+  );
+  assert.equal(
+    direccionCompleta(ficha({ direccion: "Camí de Vera", numero: "88", poblacion: "Alboraya" })),
+    "Camí de Vera 88 · Alboraya",
+    "sin interior ni CP no deja comas ni puntos sueltos"
+  );
+  assert.equal(direccionCompleta(ficha({})), "", "una ficha vacía no da basura");
+
+  /* Las cifras clave solo incluyen lo que existe. */
+  const cifras = cifrasClave(ficha({ mConstruidos: "321", dormitorios: "4", anio: "1940" }));
+  assert.deepEqual(cifras.map((c) => c.etiqueta), ["M² construidos", "Dormitorios", "Año"]);
+  assert.equal(cifras[0].unidad, "m²");
+  assert.equal(cifrasClave(ficha({})).length, 0);
+
+  assert.equal(
+    bloqueComoTexto({ titulo: "X", filas: [["Precio", "385.000"], ["Año", "1940"]] }),
+    "Precio: 385.000\nAño: 1940"
+  );
+});

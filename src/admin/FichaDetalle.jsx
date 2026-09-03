@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2, Copy, Check, Phone, Mail } from "lucide-react";
-import { bloquesFicha, textoFicha, tituloFicha } from "../lib/resumen.js";
+import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle } from "lucide-react";
+import {
+  bloquesFicha, bloqueComoTexto, textoFicha, tituloFicha, direccionCompleta, cifrasClave,
+} from "../lib/resumen.js";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
-import { llamar, ESTADOS, estadoDe } from "./api.js";
+import { TIPOS_INMUEBLE } from "../data/tipos.js";
+import { llamar, ESTADOS } from "./api.js";
+import { useCopiar } from "./useCopiar.js";
+import { FilaCopiable, BotonCopiar } from "./Copiable.jsx";
+
+const soloDigitos = (t) => String(t || "").replace(/[^\d+]/g, "");
 
 export function FichaDetalle({ id, onCerrar, onActualizada }) {
   const [ficha, setFicha] = useState(null);
   const [error, setError] = useState("");
   const [nota, setNota] = useState("");
   const [guardando, setGuardando] = useState(false);
-  const [copiado, setCopiado] = useState(false);
   const panel = useRef(null);
+  const { copiar, copiado, error: errorCopia } = useCopiar();
 
   useEffect(() => {
     let vivo = true;
@@ -44,15 +51,11 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
     }
   };
 
-  const copiar = async () => {
-    try {
-      await navigator.clipboard.writeText(textoFicha(ficha));
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    } catch {
-      setError("El navegador no permitió copiar");
-    }
-  };
+  const bloques = ficha ? bloquesFicha(ficha).filter((b) => b.titulo !== "Propietarios") : [];
+  const Icono = ficha ? (TIPOS_INMUEBLE.find((t) => t.key === ficha.data.tipo)?.icon || MapPin) : MapPin;
+  const direccion = ficha ? direccionCompleta(ficha) : "";
+  const cifras = ficha ? cifrasClave(ficha) : [];
+  const descripcion = ficha?.data?.descripcionPublica;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onCerrar}>
@@ -75,30 +78,161 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
 
         {ficha && (
           <>
-            <header className="sticky top-0 z-10 bg-ios-superficie/90 dark:bg-ios-superficie-osc/90 backdrop-blur-xl border-b border-ios-borde dark:border-ios-borde-osc px-6 py-5">
+            <header className="sticky top-0 z-10 bg-ios-superficie/95 dark:bg-ios-superficie-osc/95 backdrop-blur-xl border-b border-ios-borde dark:border-ios-borde-osc px-6 py-5">
               <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold tracking-[0.15em] uppercase text-rk-naranja">
-                    {ficha.data.operacion || "Captación"}
-                  </p>
-                  <h2 className="text-[21px] font-extrabold leading-tight mt-1 text-ios-texto dark:text-ios-texto-osc">{tituloFicha(ficha)}</h2>
-                  <p className="text-[13px] text-ios-texto2 dark:text-ios-texto2-osc mt-1">
-                    {ficha.agenteName} · recibida {fmtFecha(ficha.recibida)}
-                  </p>
+                <div className="flex gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-xl bg-rk-soft flex items-center justify-center shrink-0">
+                    <Icono size={21} className="text-rk-naranja" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold tracking-[0.15em] uppercase text-rk-naranja">
+                      {ficha.data.operacion || "Captación"}
+                    </p>
+                    <h2 className="text-[20px] font-extrabold leading-tight text-ios-texto dark:text-ios-texto-osc">
+                      {tituloFicha(ficha)}
+                    </h2>
+                    <p className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc mt-0.5">
+                      {ficha.agenteName} · {fmtFecha(ficha.recibida)}
+                      {ficha.data.referencia ? ` · ${ficha.data.referencia}` : ""}
+                    </p>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={onCerrar}
-                  aria-label="Cerrar"
-                  className="shrink-0 w-9 h-9 rounded-full bg-ios-fondo dark:bg-ios-elevada-osc text-ios-texto2 dark:text-ios-texto2-osc flex items-center justify-center"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[24px] font-extrabold text-rk-naranja whitespace-nowrap">
+                    {fmtPrecio(ficha.data.precio)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onCerrar}
+                    aria-label="Cerrar"
+                    className="w-9 h-9 rounded-full bg-ios-fondo dark:bg-ios-elevada-osc text-ios-texto2 dark:text-ios-texto2-osc flex items-center justify-center"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
-              <p className="text-[26px] font-extrabold text-rk-naranja mt-3">{fmtPrecio(ficha.data.precio)}</p>
             </header>
 
+            {errorCopia && (
+              <p role="alert" className="mx-6 mt-4 flex items-start gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[12.5px] text-amber-800">
+                <AlertCircle size={14} className="shrink-0 mt-0.5" aria-hidden="true" /> {errorCopia}
+              </p>
+            )}
+
             <div className="px-6 py-5 space-y-6">
+              {/* Cifras de un vistazo, en vez de buscarlas en la lista */}
+              {cifras.length > 0 && (
+                <ul className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {cifras.map((c) => (
+                    <li key={c.etiqueta}>
+                      <button
+                        type="button"
+                        onClick={() => copiar(c.valor, `cifra-${c.etiqueta}`)}
+                        aria-label={`Copiar ${c.etiqueta}: ${c.valor}`}
+                        className="w-full rounded-xl border border-ios-borde dark:border-ios-borde-osc px-3 py-2.5 text-left transition hover:border-rk-naranja active:scale-95"
+                      >
+                        <div className="text-[17px] font-extrabold text-ios-texto dark:text-ios-texto-osc leading-none">
+                          {copiado === `cifra-${c.etiqueta}` ? "Copiado" : c.valor}
+                          {c.unidad && copiado !== `cifra-${c.etiqueta}` && (
+                            <span className="text-[11px] font-semibold text-ios-texto3 ml-0.5">{c.unidad}</span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-ios-texto2 dark:text-ios-texto2-osc mt-1">{c.etiqueta}</div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Dirección en una línea: es lo que piden los portales */}
+              <section className="rounded-xl bg-ios-fondo dark:bg-ios-elevada-osc/50 p-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja mb-1">Dirección</p>
+                    <p className="text-[14px] font-medium text-ios-texto dark:text-ios-texto-osc leading-snug">{direccion}</p>
+                  </div>
+                  <BotonCopiar texto={direccion} clave="direccion" copiar={copiar} copiado={copiado} />
+                </div>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion)}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-rk-naranja mt-2"
+                >
+                  <MapPin size={13} aria-hidden="true" /> Ver en el mapa
+                </a>
+              </section>
+
+              {/* Propietarios: a quien hay que llamar */}
+              {ficha.propietarios.length > 0 && (
+                <section>
+                  <h3 className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja mb-2">Propietarios</h3>
+                  <ul className="space-y-2">
+                    {ficha.propietarios.filter((p) => p.nombre || p.telefono).map((p, i) => (
+                      <li key={i} className="rounded-xl border border-ios-borde dark:border-ios-borde-osc p-3.5 bg-ios-fondo dark:bg-ios-elevada-osc/50">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-semibold text-ios-texto dark:text-ios-texto-osc text-[15px]">{p.nombre || "—"}</p>
+                          <BotonCopiar
+                            texto={[p.nombre, p.telefono, p.dni, p.email].filter(Boolean).join(" · ")}
+                            clave={`prop-${i}`}
+                            copiar={copiar}
+                            copiado={copiado}
+                            etiqueta="Copiar todo"
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          {p.telefono && (
+                            <>
+                              <a href={`tel:${soloDigitos(p.telefono)}`} className="flex items-center gap-1.5 rounded-lg bg-rk-soft px-2.5 py-1.5 text-[13px] font-bold text-rk-naranja">
+                                <Phone size={13} aria-hidden="true" /> {p.telefono}
+                              </a>
+                              <a
+                                href={`https://wa.me/${soloDigitos(p.telefono).replace(/^\+?34?/, "34")}`}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="flex items-center gap-1.5 rounded-lg bg-ios-fondo dark:bg-ios-elevada-osc px-2.5 py-1.5 text-[12.5px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc"
+                              >
+                                <MessageCircle size={13} aria-hidden="true" /> WhatsApp
+                              </a>
+                              <BotonCopiar texto={p.telefono} clave={`tel-${i}`} copiar={copiar} copiado={copiado} etiqueta="Copiar tel." />
+                            </>
+                          )}
+                          {p.email && (
+                            <a href={`mailto:${p.email}`} className="flex items-center gap-1.5 text-[13px] font-semibold text-rk-naranja break-all">
+                              <Mail size={13} aria-hidden="true" /> {p.email}
+                            </a>
+                          )}
+                          {p.dni && (
+                            <button
+                              type="button"
+                              onClick={() => copiar(p.dni, `dni-${i}`)}
+                              className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc underline underline-offset-2"
+                            >
+                              {copiado === `dni-${i}` ? "DNI copiado" : `DNI ${p.dni}`}
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              {/* La descripción pública es el texto largo que va a los portales */}
+              {descripcion && (
+                <section className="rounded-xl border border-rk-softBorde bg-rk-soft/50 dark:bg-rk-naranja/10 dark:border-rk-naranja/25 p-3.5">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <h3 className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja">
+                      Descripción para portales
+                    </h3>
+                    <BotonCopiar texto={descripcion} clave="descripcion" copiar={copiar} copiado={copiado} etiqueta="Copiar texto" />
+                  </div>
+                  <p className="text-[13.5px] text-ios-texto dark:text-ios-texto-osc leading-relaxed whitespace-pre-wrap">
+                    {descripcion}
+                  </p>
+                </section>
+              )}
+
               {/* Seguimiento */}
               <section>
                 <h3 className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja mb-2">Seguimiento</h3>
@@ -113,7 +247,9 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                         disabled={guardando}
                         onClick={() => guardar({ estado: e.key })}
                         className={`px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition active:scale-95 disabled:opacity-50 ${
-                          act ? "text-white border-transparent" : "bg-white dark:bg-ios-elevada-osc text-gray-700 dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc"
+                          act
+                            ? "text-white border-transparent"
+                            : "bg-white dark:bg-ios-elevada-osc text-ios-texto2 dark:text-ios-texto2-osc border-ios-borde dark:border-ios-borde-osc"
                         }`}
                         style={act ? { background: e.fuerte } : undefined}
                       >
@@ -136,56 +272,42 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                 />
               </section>
 
-              {/* Propietarios, destacados: es a quien hay que llamar */}
-              {ficha.propietarios.length > 0 && (
-                <section>
-                  <h3 className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja mb-2">Propietarios</h3>
-                  <ul className="space-y-2">
-                    {ficha.propietarios.filter((p) => p.nombre || p.telefono).map((p, i) => (
-                      <li key={i} className="rounded-xl border border-ios-borde dark:border-ios-borde-osc p-3.5 bg-ios-fondo dark:bg-ios-elevada-osc">
-                        <p className="font-semibold text-ios-texto dark:text-ios-texto-osc text-[15px]">{p.nombre || "—"}</p>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
-                          {p.telefono && (
-                            <a href={`tel:${p.telefono.replace(/\s/g, "")}`} className="flex items-center gap-1.5 text-[13.5px] font-semibold text-rk-naranja">
-                              <Phone size={13} aria-hidden="true" /> {p.telefono}
-                            </a>
-                          )}
-                          {p.email && (
-                            <a href={`mailto:${p.email}`} className="flex items-center gap-1.5 text-[13.5px] font-semibold text-rk-naranja break-all">
-                              <Mail size={13} aria-hidden="true" /> {p.email}
-                            </a>
-                          )}
-                          {p.dni && <span className="text-[13px] text-ios-texto2 dark:text-ios-texto2-osc">DNI {p.dni}</span>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              {/* Resto de la ficha */}
-              {bloquesFicha(ficha).filter((b) => b.titulo !== "Propietarios").map((b) => (
+              {/* El resto de la ficha: cada fila se copia sola, cada bloque entero */}
+              {bloques.map((b) => (
                 <section key={b.titulo}>
-                  <h3 className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja mb-2">{b.titulo}</h3>
-                  <dl className="divide-y divide-ios-borde dark:divide-ios-borde-osc">
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <h3 className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja">{b.titulo}</h3>
+                    <BotonCopiar
+                      texto={bloqueComoTexto(b)}
+                      clave={`bloque-${b.titulo}`}
+                      copiar={copiar}
+                      copiado={copiado}
+                      etiqueta="Copiar sección"
+                    />
+                  </div>
+                  <div className="divide-y divide-ios-borde dark:divide-ios-borde-osc">
                     {b.filas.map(([k, v]) => (
-                      <div key={k} className="flex gap-4 py-2">
-                        <dt className="w-2/5 shrink-0 text-[13px] text-ios-texto2 dark:text-ios-texto2-osc">{k}</dt>
-                        <dd className="flex-1 text-[13.5px] font-medium text-ios-texto dark:text-ios-texto-osc">{v}</dd>
-                      </div>
+                      <FilaCopiable
+                        key={k}
+                        etiqueta={k}
+                        valor={v}
+                        clave={`${b.titulo}-${k}`}
+                        copiar={copiar}
+                        copiado={copiado}
+                      />
                     ))}
-                  </dl>
+                  </div>
                 </section>
               ))}
 
-              <button
-                type="button"
-                onClick={copiar}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-ios-borde dark:border-ios-borde-osc font-semibold text-[14px] text-gray-700 dark:text-ios-texto-osc active:scale-95 transition"
-              >
-                {copiado ? <Check size={16} className="text-green-600" aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
-                {copiado ? "Copiado" : "Copiar ficha como texto"}
-              </button>
+              <BotonCopiar
+                texto={textoFicha(ficha)}
+                clave="ficha-completa"
+                copiar={copiar}
+                copiado={copiado}
+                etiqueta="Copiar la ficha completa"
+                className="w-full justify-center py-3 text-[14px]"
+              />
             </div>
           </>
         )}
@@ -194,5 +316,3 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
     </div>
   );
 }
-
-export { estadoDe };
