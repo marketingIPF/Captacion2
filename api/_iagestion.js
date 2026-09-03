@@ -9,6 +9,55 @@ import { parseNumero } from "../src/lib/validacion.js";
 
 export const BASE = "https://pasarelas.iagestion.com/api-gestioninmo/v2";
 
+/* La API es PHP y espera los parámetros como formulario, no como JSON: el
+   ejemplo del manual usa CURLOPT_POSTFIELDS con un array. Enviando JSON
+   responde "Autenticación con usuario y password es obligatoria", como si
+   faltaran las credenciales. */
+export async function llamarIagestion(servicio, parametros = {}) {
+  const usuario = process.env.IAGESTION_USUARIO;
+  const password = process.env.IAGESTION_PASSWORD;
+  if (!usuario || !password) {
+    return { ok: false, error: "Faltan IAGESTION_USUARIO / IAGESTION_PASSWORD" };
+  }
+
+  const cuerpo = new URLSearchParams({ usuario, password });
+  for (const [k, v] of Object.entries(parametros)) {
+    if (v === undefined || v === null || v === "") continue;
+    cuerpo.set(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+  }
+
+  let respuesta;
+  try {
+    respuesta = await fetch(`${BASE}/${servicio}/`, { method: "POST", body: cuerpo });
+  } catch {
+    return { ok: false, error: "No se pudo contactar con el CRM" };
+  }
+
+  const texto = await respuesta.text();
+
+  /* El CRM devuelve 200 incluso cuando falla, y a veces con un error de PHP
+     en crudo en vez de JSON. Hay que mirar el contenido, no el código. */
+  let datos = null;
+  try {
+    datos = JSON.parse(texto);
+  } catch {
+    const fatal = /Fatal error|PDOException|SQLSTATE/i.test(texto);
+    return {
+      ok: false,
+      estado: respuesta.status,
+      error: fatal
+        ? "El CRM rechazó las credenciales (error interno de su base de datos)"
+        : `El CRM no devolvió JSON (${respuesta.status})`,
+      crudo: texto.slice(0, 400),
+    };
+  }
+
+  if (datos?.error) {
+    return { ok: false, estado: respuesta.status, error: String(datos.message || "Error del CRM"), datos };
+  }
+  return { ok: true, estado: respuesta.status, datos };
+}
+
 /* Nuestros tipos → los del CRM.
    OJO: los valores del CRM hay que confirmarlos con el servicio tipo_inmueble;
    estos son la conjetura razonable. `npm run iagestion:tipos` los descarga. */
