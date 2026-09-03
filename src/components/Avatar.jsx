@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { iniciales } from "../lib/format.js";
+import { iniciales, rutaAvatar } from "../lib/format.js";
 
 /* Foto del agente, con las iniciales como respaldo: si el archivo no existe
    (alta reciente, avatar sin generar) el círculo sigue siendo legible. */
@@ -7,11 +7,12 @@ export function Avatar({ agente, tam = 40, className = "" }) {
   const [falla, setFalla] = useState(false);
   const estilo = { width: tam, height: tam };
   const base = `rounded-full shrink-0 overflow-hidden ${className}`;
+  const src = agente?.avatar || rutaAvatar(agente?.id);
 
-  if (agente?.avatar && !falla) {
+  if (src && !falla) {
     return (
       <img
-        src={agente.avatar}
+        src={src}
         alt=""
         width={tam}
         height={tam}

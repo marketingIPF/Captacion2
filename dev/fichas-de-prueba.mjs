@@ -30,6 +30,7 @@ const enviar = async (ficha) => {
 
 const EJEMPLOS = [
   {
+    diasAtras: 0,
     agenteId: "eva-valles",
     agenteName: "Eva Vallés",
     estado: "nueva",
@@ -57,12 +58,13 @@ const EJEMPLOS = [
       ascensor: "Sí", cotaCero: "Sí", conserjeria: "Sí", fachada: "Piedra",
       estado: "Buen estado", orientacion: "Sur",
       vistas: ["Despejadas"], servicios: ["Metro/Bus", "Supermercado", "Colegios"],
-      notasInternas: `${MARCA} Ficha de ejemplo para revisar el panel. Los propietarios son inventados. Borrar con: npm run db:prueba:borrar`,
+      notasInternas: `${MARCA} Ficha de ejemplo para la formación. Los propietarios son inventados. Firmada la exclusiva el 28/08; el propietario tiene prisa por vender.`,
       descripcionPublica:
         "Amplia vivienda señorial en pleno centro, con 321 m² construidos, cuatro dormitorios y balcón a Calle Colón. Finca con ascensor y conserjería.",
     },
   },
   {
+    diasAtras: 4,
     agenteId: "mavi-castillo",
     agenteName: "Mavi Castillo Esteban",
     estado: "publicada",
@@ -84,12 +86,13 @@ const EJEMPLOS = [
       acs: "Aerotermia", clima: "Conductos", calefaccion: "Suelo radiante", paredes: "Lisas",
       cotaCero: "Sí", fachada: "Monocapa", estado: "Para entrar", orientacion: "Sur",
       vistas: ["Despejadas"], servicios: ["Colegios", "Supermercado", "Parques"],
-      notasInternas: `${MARCA} Ficha de ejemplo. Propietario inventado.`,
+      notasInternas: `${MARCA} Ficha de ejemplo para la formación. Propietario inventado. Publicada en portales el 30/08. Visitas solo por la tarde.`,
       descripcionPublica:
         "Chalet independiente de 245 m² en parcela de 450 m² con piscina y jardín. Cuatro dormitorios, suelo radiante y aerotermia. Listo para entrar a vivir.",
     },
   },
   {
+    diasAtras: 11,
     agenteId: "fede-carbonell",
     agenteName: "Fede Carbonell",
     estado: "descartada",
@@ -108,7 +111,7 @@ const EJEMPLOS = [
       cotaCero: "Sí", fachada: "Pintada", estado: "A reformar", orientacion: "Este",
       suministros: ["Agua", "Luz", "Alcantarillado"],
       servicios: ["Metro/Bus", "Supermercado"],
-      notasInternas: `${MARCA} Ficha de ejemplo. El propietario pedía un alquiler fuera de mercado; se descartó.`,
+      notasInternas: `${MARCA} Ficha de ejemplo para la formación. El propietario pedía un alquiler muy por encima de mercado y no acepta bajarlo. Se descarta, pero conviene volver a llamar en tres meses.`,
       descripcionPublica: "Local comercial de 180 m² a pie de calle en Avenida del Puerto, con 8 metros de escaparate y salida de humos.",
     },
   },
@@ -131,9 +134,10 @@ console.log("Insertando fichas de ejemplo…\n");
 let fallos = 0;
 
 for (const e of EJEMPLOS) {
+  const cuando = new Date(Date.now() - (e.diasAtras ?? 0) * 86400000 - 3 * 3600000);
   const ficha = {
     id: randomUUID(),
-    creada: new Date(Date.now() - Math.random() * 12 * 86400000).toISOString(),
+    creada: cuando.toISOString(),
     agenteId: e.agenteId,
     agenteName: e.agenteName,
     propietarios: e.propietarios,
@@ -147,6 +151,12 @@ for (const e of EJEMPLOS) {
     continue;
   }
 
+  /* La fecha de recepción la pone la base de datos; para la demostración
+     interesa que el listado no salga todo con la misma hora. */
+  if (e.diasAtras) {
+    await sql`update fichas set recibida_en = ${cuando.toISOString()} where id = ${ficha.id}`;
+  }
+
   /* Estados variados para poder probar los filtros del panel. */
   if (e.estado !== "nueva") {
     const ru = res();
@@ -156,7 +166,8 @@ for (const e of EJEMPLOS) {
     if (ru.code && ru.code !== 200) console.error("    (no se pudo fijar el estado)", ru.body);
   }
 
-  console.log(`  ✓ ${e.data.tipo.padEnd(14)} ${e.data.direccion} ${e.data.numero}  ·  ${e.estado}  ·  ${e.agenteName}`);
+  const cuandoTxt = e.diasAtras ? `hace ${e.diasAtras} días` : "hoy";
+  console.log(`  ✓ ${e.data.tipo.padEnd(14)} ${(e.data.direccion + " " + e.data.numero).padEnd(26)} ${e.estado.padEnd(11)} ${cuandoTxt.padEnd(12)} ${e.agenteName}`);
 }
 
 const [{ n }] = await sql`select count(*)::int as n from fichas`;

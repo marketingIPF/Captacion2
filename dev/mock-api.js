@@ -245,6 +245,7 @@ const responder = (res, code, cuerpo) => {
 const resumenDe = (f) => ({
   id: f.id,
   recibida: f.recibida_en,
+  agenteId: f.agente_id,
   agenteName: f.agente_nombre,
   estado: f.estado,
   operacion: f.operacion,

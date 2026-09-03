@@ -45,8 +45,8 @@ export async function listar(sql, body, res) {
   const patron = texto ? `%${texto}%` : null;
 
   const filas = await sql`
-    select id, recibida_en, agente_nombre, estado, operacion, tipo, referencia,
-           direccion, numero, poblacion, precio
+    select id, recibida_en, agente_id, agente_nombre, estado, operacion, tipo,
+           referencia, direccion, numero, poblacion, precio
     from fichas
     where (${estado}::text is null or estado = ${estado})
       and (${agente}::text is null or agente_id = ${agente})

@@ -5,6 +5,7 @@ import {
 } from "../lib/resumen.js";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
 import { TIPOS_INMUEBLE } from "../data/tipos.js";
+import { Avatar } from "../components/Avatar.jsx";
 import { llamar, ESTADOS } from "./api.js";
 import { useCopiar } from "./useCopiar.js";
 import { FilaCopiable, BotonCopiar } from "./Copiable.jsx";
@@ -91,10 +92,13 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                     <h2 className="text-[20px] font-extrabold leading-tight text-ios-texto dark:text-ios-texto-osc">
                       {tituloFicha(ficha)}
                     </h2>
-                    <p className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc mt-0.5">
-                      {ficha.agenteName} · {fmtFecha(ficha.recibida)}
-                      {ficha.data.referencia ? ` · ${ficha.data.referencia}` : ""}
-                    </p>
+                    <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                      <Avatar agente={{ id: ficha.agenteId, name: ficha.agenteName }} tam={20} />
+                      <p className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc truncate">
+                        {ficha.agenteName} · {fmtFecha(ficha.recibida)}
+                        {ficha.data.referencia ? ` · ${ficha.data.referencia}` : ""}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

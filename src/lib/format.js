@@ -20,5 +20,10 @@ export const fmtNumero = (v, unidad = "") => {
   return unidad ? `${s} ${unidad}` : s;
 };
 
+/* Los avatares se generan como public/avatars/<id del agente>.webp
+   (npm run avatares). El panel solo recibe el id, así que la convención vive
+   aquí y no duplicada en cada sitio que la necesite. */
+export const rutaAvatar = (id) => (id ? `/avatars/${id}.webp` : null);
+
 export const iniciales = (nombre = "") =>
   nombre.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();

@@ -82,6 +82,9 @@ export const filaAFicha = (row) => ({
 export const filaAResumen = (row) => ({
   id: row.id,
   recibida: row.recibida_en,
+  /* El id permite pintar el avatar; no revela nada que no muestre ya el
+     nombre, que va justo al lado. */
+  agenteId: row.agente_id,
   agenteName: row.agente_nombre,
   estado: row.estado,
   operacion: row.operacion,

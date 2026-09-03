@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
+import { Avatar } from "../components/Avatar.jsx";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
 import { llamar, ESTADOS, estadoDe } from "./api.js";
 import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl } from "./auth.js";
@@ -245,7 +246,14 @@ export function AdminApp() {
                           {[f.poblacion, f.tipo, f.operacion].filter(Boolean).join(" · ")}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-[13px] text-ios-texto2 dark:text-ios-texto2-osc hidden md:table-cell">{f.agenteName}</td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <Avatar agente={{ id: f.agenteId, name: f.agenteName }} tam={28} />
+                          <span className="text-[13px] text-ios-texto2 dark:text-ios-texto2-osc truncate">
+                            {f.agenteName}
+                          </span>
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-[13px] text-ios-texto2 dark:text-ios-texto2-osc hidden sm:table-cell whitespace-nowrap">{fmtFecha(f.recibida)}</td>
                       <td className="px-4 py-3 text-[14px] font-bold text-ios-texto dark:text-ios-texto-osc text-right whitespace-nowrap">{fmtPrecio(f.precio)}</td>
                       <td className="px-4 py-3">
