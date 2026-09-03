@@ -74,6 +74,7 @@ export const filaAFicha = (row) => ({
   agenteName: row.agente_nombre,
   estado: row.estado,
   notaOficina: row.nota_oficina,
+  actualizadaPor: row.actualizada_por || null,
   data: row.datos,
   propietarios: row.propietarios || [],
 });

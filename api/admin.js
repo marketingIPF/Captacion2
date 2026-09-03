@@ -1,6 +1,6 @@
 import { autorizarPanel } from "./_auth.js";
 import { db } from "./_db.js";
-import { filaAFicha, filaAResumen, ESTADOS } from "./_ficha.js";
+import { filaAFicha, filaAResumen, fichaAFila, ESTADOS } from "./_ficha.js";
 
 /* Panel de oficina. El acceso va por sesión de Neon Auth (Google), no por PIN:
    cada persona entra con su cuenta y se le puede revocar el acceso por
@@ -17,6 +17,7 @@ export default async function handler(req, res) {
     if (accion === "listar") return await listar(sql, body, res);
     if (accion === "detalle") return await detalle(sql, body, res);
     if (accion === "actualizar") return await actualizar(sql, body, res, usuario);
+    if (accion === "editar") return await editar(sql, body, res, usuario);
     if (accion === "resumen") return await resumen(sql, res, usuario);
     res.status(400).json({ error: "Acción desconocida" });
   } catch (err) {
@@ -93,6 +94,52 @@ export async function actualizar(sql, body, res, usuario) {
   `;
   if (!row) return res.status(404).json({ error: "Ficha no encontrada" });
   res.status(200).json({ ok: true, ficha: row });
+}
+
+/* Edición de la ficha desde la oficina.
+   Reutiliza fichaAFila(), la misma traducción y validación que usa la entrada
+   del agente, para que no haya dos definiciones de qué es una ficha válida.
+   Escribe a la vez las columnas desnormalizadas y el jsonb: si quedaran
+   desparejados, el listado diría una cosa y la ficha otra. */
+export async function editar(sql, body, res, usuario) {
+  if (!body.id) return res.status(400).json({ error: "Falta el identificador" });
+  if (!body.data || typeof body.data !== "object") {
+    return res.status(400).json({ error: "Faltan los datos de la ficha" });
+  }
+
+  const [previa] = await sql`select * from fichas where id = ${body.id}`;
+  if (!previa) return res.status(404).json({ error: "Ficha no encontrada" });
+
+  const anterior = filaAFicha(previa);
+  const propietarios = Array.isArray(body.propietarios) ? body.propietarios : anterior.propietarios;
+
+  const { ok, fila, error } = fichaAFila({
+    ...anterior,
+    creada: anterior.creada,
+    data: body.data,
+    propietarios,
+  });
+  if (!ok) return res.status(400).json({ error });
+
+  const [row] = await sql`
+    update fichas set
+      operacion = ${fila.operacion},
+      tipo = ${fila.tipo},
+      referencia = ${fila.referencia},
+      direccion = ${fila.direccion},
+      numero = ${fila.numero},
+      poblacion = ${fila.poblacion},
+      provincia = ${fila.provincia},
+      cp = ${fila.cp},
+      precio = ${fila.precio},
+      datos = ${JSON.stringify(fila.datos)},
+      propietarios = ${JSON.stringify(fila.propietarios)},
+      actualizada_por = ${usuario?.email || null}
+    where id = ${body.id}
+    returning *
+  `;
+
+  res.status(200).json({ ok: true, ficha: filaAFicha(row) });
 }
 
 export async function resumen(sql, res, usuario) {

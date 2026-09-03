@@ -303,7 +303,10 @@ export function AdminApp() {
         <FichaDetalle
           id={abierta}
           onCerrar={() => setAbierta(null)}
-          onActualizada={(f) => setFichas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: f.estado } : x)))}
+          onActualizada={(f) => {
+            if (f.recargar) cargar();
+            else setFichas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: f.estado } : x)));
+          }}
         />
       )}
     </div>

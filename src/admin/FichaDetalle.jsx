@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle } from "lucide-react";
+import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, Pencil } from "lucide-react";
 import {
   bloquesFicha, bloqueComoTexto, textoFicha, tituloFicha, direccionCompleta, cifrasClave,
 } from "../lib/resumen.js";
@@ -9,6 +9,7 @@ import { Avatar } from "../components/Avatar.jsx";
 import { llamar, ESTADOS } from "./api.js";
 import { useCopiar } from "./useCopiar.js";
 import { FilaCopiable, BotonCopiar, ValorCopiable } from "./Copiable.jsx";
+import { EditarFicha } from "./EditarFicha.jsx";
 
 const soloDigitos = (t) => String(t || "").replace(/[^\d+]/g, "");
 
@@ -17,6 +18,7 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
   const [error, setError] = useState("");
   const [nota, setNota] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [editando, setEditando] = useState(false);
   const panel = useRef(null);
   const { copiar, copiado, error: errorCopia } = useCopiar();
 
@@ -134,6 +136,15 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                   >
                     {fmtPrecio(ficha.data.precio)}
                   </ValorCopiable>
+                  {!editando && (
+                    <button
+                      type="button"
+                      onClick={() => setEditando(true)}
+                      className="flex items-center gap-1.5 rounded-lg bg-ios-fondo dark:bg-ios-elevada-osc text-ios-texto2 dark:text-ios-texto2-osc px-3 h-9 text-[13px] font-semibold active:scale-95 transition"
+                    >
+                      <Pencil size={14} aria-hidden="true" /> Editar
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={onCerrar}
@@ -152,6 +163,19 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
               </p>
             )}
 
+            {editando ? (
+              <EditarFicha
+                ficha={ficha}
+                onCancelar={() => setEditando(false)}
+                onGuardada={(actualizada) => {
+                  setFicha(actualizada);
+                  setEditando(false);
+                  /* El listado muestra dirección, precio y estado: si cambian
+                     hay que refrescarlo, no solo esta ficha. */
+                  onActualizada?.({ id: actualizada.id, estado: actualizada.estado, recargar: true });
+                }}
+              />
+            ) : (
             <div className="px-6 py-5 space-y-6">
               {/* Cifras de un vistazo, en vez de buscarlas en la lista */}
               {cifras.length > 0 && (
@@ -400,7 +424,15 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                 etiqueta="Copiar la ficha completa"
                 className="w-full justify-center py-3 text-[14px]"
               />
+
+              {ficha.actualizadaPor && (
+                <p className="text-[11.5px] text-ios-texto3 text-center">
+                  Última modificación en oficina: {ficha.actualizadaPor}
+                  {ficha.actualizada ? ` · ${fmtFecha(ficha.actualizada)}` : ""}
+                </p>
+              )}
             </div>
+            )}
           </>
         )}
       </div>

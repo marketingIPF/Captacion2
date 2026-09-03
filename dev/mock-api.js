@@ -335,7 +335,8 @@ export function mockApi() {
               ficha: {
                 id: f.id, creada: f.creada_en, recibida: f.recibida_en, actualizada: f.actualizada_en,
                 agenteId: f.agente_id, agenteName: f.agente_nombre, estado: f.estado,
-                notaOficina: f.nota_oficina, data: f.datos, propietarios: f.propietarios,
+                notaOficina: f.nota_oficina, actualizadaPor: f.actualizada_por,
+                data: f.datos, propietarios: f.propietarios,
               },
             });
           }
@@ -347,6 +348,45 @@ export function mockApi() {
             if (body.nota !== undefined && body.nota !== null) f.nota_oficina = body.nota;
             f.actualizada_en = new Date().toISOString();
             return responder(res, 200, { ok: true, ficha: { id: f.id, estado: f.estado, nota_oficina: f.nota_oficina, actualizada_en: f.actualizada_en } });
+          }
+
+          if (body.accion === "editar") {
+            const f = fichas.get(body.id);
+            if (!f) return responder(res, 404, { error: "Ficha no encontrada" });
+            if (!body.data?.direccion) return responder(res, 400, { error: "Falta la dirección" });
+            if (!body.data?.tipo) return responder(res, 400, { error: "Falta el tipo de inmueble" });
+            Object.assign(f, {
+              datos: body.data,
+              propietarios: body.propietarios || f.propietarios,
+              operacion: body.data.operacion || null,
+              tipo: body.data.tipo || null,
+              referencia: body.data.referencia || null,
+              direccion: body.data.direccion || null,
+              numero: body.data.numero || null,
+              poblacion: body.data.poblacion || null,
+              provincia: body.data.provincia || null,
+              cp: body.data.cp || null,
+              precio: Number(String(body.data.precio || "").replace(/\./g, "").replace(",", ".")) || null,
+              actualizada_en: new Date().toISOString(),
+              actualizada_por: "julia@inmobiliariapalanca.com",
+            });
+            return responder(res, 200, {
+              ok: true,
+              ficha: {
+                id: f.id, creada: f.creada_en, recibida: f.recibida_en, actualizada: f.actualizada_en,
+                agenteId: f.agente_id, agenteName: f.agente_nombre, estado: f.estado,
+                notaOficina: f.nota_oficina, actualizadaPor: f.actualizada_por,
+                data: f.datos, propietarios: f.propietarios,
+              },
+            });
+          }
+
+          /* Sin esto, una acción que el simulador no conozca caía en el
+             listado y devolvía algo sin la forma esperada: un fallo real
+             pasaba por respuesta válida. */
+          const CONOCIDAS = ["listar", "detalle", "actualizar", "editar", "resumen", undefined];
+          if (!CONOCIDAS.includes(body.accion)) {
+            return responder(res, 400, { error: `Acción desconocida: ${body.accion}` });
           }
 
           const t = (body.busqueda || "").trim().toLowerCase();

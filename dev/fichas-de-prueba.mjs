@@ -41,7 +41,7 @@ const EJEMPLOS = [
     data: {
       operacion: "Venta", tipo: "Piso", referencia: "#05619",
       refCatastral: "6121104YJ2762A0003RL",
-      direccion: "Calle Colon", numero: "26", bloque: "1", planta: "02", puerta: "02",
+      direccion: "EJEMPLO · Calle Colon", numero: "26", bloque: "1", planta: "02", puerta: "02",
       poblacion: "Valencia", provincia: "Valencia", cp: "46004",
       suelo: "Urbano", cee: "Hecho", ceeLetra: "E", cargas: "Hipoteca",
       cargasDetalle: "Pendiente 78.000 € con Sabadell", ocupacion: "Libre",
@@ -71,7 +71,7 @@ const EJEMPLOS = [
     propietarios: [{ nombre: "Josep Marí Tormo", telefono: "622110099", dni: "11111111H", email: "" }],
     data: {
       operacion: "Venta", tipo: "Casa / Chalet", referencia: "#05620",
-      direccion: "Cami de Vera", numero: "88",
+      direccion: "EJEMPLO · Cami de Vera", numero: "88",
       poblacion: "Alboraya", provincia: "Valencia", cp: "46120",
       suelo: "Urbano", cee: "Pendiente", cargas: "No", ocupacion: "Libre",
       autorizacion: "Sí", exclusiva: "Sin exclusiva",
@@ -99,7 +99,7 @@ const EJEMPLOS = [
     propietarios: [{ nombre: "Inmuebles Túria S.L.", telefono: "963111222", dni: "", email: "" }],
     data: {
       operacion: "Alquiler", tipo: "Local", referencia: "#05621",
-      direccion: "Avenida del Puerto", numero: "145",
+      direccion: "EJEMPLO · Avenida del Puerto", numero: "145",
       poblacion: "Valencia", provincia: "Valencia", cp: "46022",
       suelo: "Urbano", cee: "Exento", cargas: "No", ocupacion: "Libre",
       autorizacion: "No",
