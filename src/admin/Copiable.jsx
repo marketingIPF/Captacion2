@@ -48,3 +48,23 @@ export function BotonCopiar({ texto, clave, copiar, copiado, etiqueta = "Copiar"
     </button>
   );
 }
+
+/* Un valor suelto que se copia al pulsarlo, para la cabecera y las fichas de
+   propietario. Sin icono fijo: el subrayado punteado ya insinúa que se puede
+   pulsar, y el acuse sustituye el texto un instante. */
+export function ValorCopiable({ valor, clave, copiar, copiado, etiqueta, className = "", children }) {
+  const esta = copiado === clave;
+  return (
+    <button
+      type="button"
+      onClick={() => copiar(valor, clave)}
+      aria-label={`Copiar ${etiqueta}: ${valor}`}
+      title={`Copiar ${etiqueta}`}
+      className={`text-left rounded transition decoration-dotted underline-offset-4 hover:underline active:scale-95 ${
+        esta ? "text-green-700 dark:text-green-400" : ""
+      } ${className}`}
+    >
+      {esta ? "¡Copiado!" : children ?? valor}
+    </button>
+  );
+}

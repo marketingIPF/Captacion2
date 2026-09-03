@@ -8,7 +8,7 @@ import { TIPOS_INMUEBLE } from "../data/tipos.js";
 import { Avatar } from "../components/Avatar.jsx";
 import { llamar, ESTADOS } from "./api.js";
 import { useCopiar } from "./useCopiar.js";
-import { FilaCopiable, BotonCopiar } from "./Copiable.jsx";
+import { FilaCopiable, BotonCopiar, ValorCopiable } from "./Copiable.jsx";
 
 const soloDigitos = (t) => String(t || "").replace(/[^\d+]/g, "");
 
@@ -86,25 +86,54 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                     <Icono size={21} className="text-rk-naranja" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold tracking-[0.15em] uppercase text-rk-naranja">
+                    <ValorCopiable
+                      valor={ficha.data.operacion || ""}
+                      clave="operacion"
+                      copiar={copiar}
+                      copiado={copiado}
+                      etiqueta="la operación"
+                      className="block text-[11px] font-bold tracking-[0.15em] uppercase text-rk-naranja"
+                    >
                       {ficha.data.operacion || "Captación"}
-                    </p>
-                    <h2 className="text-[20px] font-extrabold leading-tight text-ios-texto dark:text-ios-texto-osc">
-                      {tituloFicha(ficha)}
-                    </h2>
-                    <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                    </ValorCopiable>
+                    <ValorCopiable
+                      valor={tituloFicha(ficha)}
+                      clave="titulo"
+                      copiar={copiar}
+                      copiado={copiado}
+                      etiqueta="el título"
+                      className="block text-[20px] font-extrabold leading-tight text-ios-texto dark:text-ios-texto-osc"
+                    >
+                      <h2>{tituloFicha(ficha)}</h2>
+                    </ValorCopiable>
+                    <div className="flex items-center gap-1.5 mt-1 min-w-0 text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc">
                       <Avatar agente={{ id: ficha.agenteId, name: ficha.agenteName }} tam={20} />
-                      <p className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc truncate">
-                        {ficha.agenteName} · {fmtFecha(ficha.recibida)}
-                        {ficha.data.referencia ? ` · ${ficha.data.referencia}` : ""}
-                      </p>
+                      <ValorCopiable valor={ficha.agenteName} clave="agente" copiar={copiar} copiado={copiado} etiqueta="el agente" />
+                      <span aria-hidden="true">·</span>
+                      <ValorCopiable valor={fmtFecha(ficha.recibida)} clave="fecha" copiar={copiar} copiado={copiado} etiqueta="la fecha" className="whitespace-nowrap" />
+                      {ficha.data.referencia && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <ValorCopiable valor={ficha.data.referencia} clave="referencia" copiar={copiar} copiado={copiado} etiqueta="la referencia" className="font-semibold" />
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[24px] font-extrabold text-rk-naranja whitespace-nowrap">
+                  {/* Copia el número pelado (385000), que es lo que pide un
+                      campo de formulario. La versión con formato está en la
+                      fila de "Datos económicos". */}
+                  <ValorCopiable
+                    valor={String(ficha.data.precio ?? "")}
+                    clave="precio"
+                    copiar={copiar}
+                    copiado={copiado}
+                    etiqueta="el precio"
+                    className="text-[24px] font-extrabold text-rk-naranja whitespace-nowrap"
+                  >
                     {fmtPrecio(ficha.data.precio)}
-                  </span>
+                  </ValorCopiable>
                   <button
                     type="button"
                     onClick={onCerrar}
@@ -153,7 +182,14 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja mb-1">Dirección</p>
-                    <p className="text-[14px] font-medium text-ios-texto dark:text-ios-texto-osc leading-snug">{direccion}</p>
+                    <ValorCopiable
+                      valor={direccion}
+                      clave="direccion-texto"
+                      copiar={copiar}
+                      copiado={copiado}
+                      etiqueta="la dirección"
+                      className="text-[14px] font-medium text-ios-texto dark:text-ios-texto-osc leading-snug"
+                    />
                   </div>
                   <BotonCopiar texto={direccion} clave="direccion" copiar={copiar} copiado={copiado} />
                 </div>
@@ -175,7 +211,19 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                     {ficha.propietarios.filter((p) => p.nombre || p.telefono).map((p, i) => (
                       <li key={i} className="rounded-xl border border-ios-borde dark:border-ios-borde-osc p-3.5 bg-ios-fondo dark:bg-ios-elevada-osc/50">
                         <div className="flex items-start justify-between gap-3">
-                          <p className="font-semibold text-ios-texto dark:text-ios-texto-osc text-[15px]">{p.nombre || "—"}</p>
+                          {/* Cada dato se copia por separado; las acciones
+                              (llamar, WhatsApp, escribir) van como iconos al
+                              lado para no robarle el clic al copiado. */}
+                          <ValorCopiable
+                            valor={p.nombre || ""}
+                            clave={`nombre-${i}`}
+                            copiar={copiar}
+                            copiado={copiado}
+                            etiqueta="el nombre"
+                            className="font-semibold text-ios-texto dark:text-ios-texto-osc text-[15px]"
+                          >
+                            {p.nombre || "—"}
+                          </ValorCopiable>
                           <BotonCopiar
                             texto={[p.nombre, p.telefono, p.dni, p.email].filter(Boolean).join(" · ")}
                             clave={`prop-${i}`}
@@ -184,36 +232,68 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                             etiqueta="Copiar todo"
                           />
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-2">
                           {p.telefono && (
-                            <>
-                              <a href={`tel:${soloDigitos(p.telefono)}`} className="flex items-center gap-1.5 rounded-lg bg-rk-soft px-2.5 py-1.5 text-[13px] font-bold text-rk-naranja">
-                                <Phone size={13} aria-hidden="true" /> {p.telefono}
+                            <span className="flex items-center gap-1 rounded-lg bg-rk-soft pl-2.5 pr-1 py-1">
+                              <ValorCopiable
+                                valor={p.telefono}
+                                clave={`tel-${i}`}
+                                copiar={copiar}
+                                copiado={copiado}
+                                etiqueta="el teléfono"
+                                className="text-[13px] font-bold text-rk-naranja"
+                              />
+                              <a
+                                href={`tel:${soloDigitos(p.telefono)}`}
+                                aria-label={`Llamar a ${p.nombre || "el propietario"}`}
+                                title="Llamar"
+                                className="w-6 h-6 rounded flex items-center justify-center text-rk-naranja hover:bg-white/60"
+                              >
+                                <Phone size={13} aria-hidden="true" />
                               </a>
                               <a
                                 href={`https://wa.me/${soloDigitos(p.telefono).replace(/^\+?34?/, "34")}`}
                                 target="_blank"
                                 rel="noreferrer noopener"
-                                className="flex items-center gap-1.5 rounded-lg bg-ios-fondo dark:bg-ios-elevada-osc px-2.5 py-1.5 text-[12.5px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc"
+                                aria-label={`Escribir por WhatsApp a ${p.nombre || "el propietario"}`}
+                                title="WhatsApp"
+                                className="w-6 h-6 rounded flex items-center justify-center text-rk-naranja hover:bg-white/60"
                               >
-                                <MessageCircle size={13} aria-hidden="true" /> WhatsApp
+                                <MessageCircle size={13} aria-hidden="true" />
                               </a>
-                              <BotonCopiar texto={p.telefono} clave={`tel-${i}`} copiar={copiar} copiado={copiado} etiqueta="Copiar tel." />
-                            </>
+                            </span>
                           )}
                           {p.email && (
-                            <a href={`mailto:${p.email}`} className="flex items-center gap-1.5 text-[13px] font-semibold text-rk-naranja break-all">
-                              <Mail size={13} aria-hidden="true" /> {p.email}
-                            </a>
+                            <span className="flex items-center gap-1">
+                              <ValorCopiable
+                                valor={p.email}
+                                clave={`email-${i}`}
+                                copiar={copiar}
+                                copiado={copiado}
+                                etiqueta="el email"
+                                className="text-[13px] font-semibold text-rk-naranja break-all"
+                              />
+                              <a
+                                href={`mailto:${p.email}`}
+                                aria-label={`Escribir a ${p.email}`}
+                                title="Escribir un correo"
+                                className="w-6 h-6 rounded flex items-center justify-center text-rk-naranja"
+                              >
+                                <Mail size={13} aria-hidden="true" />
+                              </a>
+                            </span>
                           )}
                           {p.dni && (
-                            <button
-                              type="button"
-                              onClick={() => copiar(p.dni, `dni-${i}`)}
-                              className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc underline underline-offset-2"
+                            <ValorCopiable
+                              valor={p.dni}
+                              clave={`dni-${i}`}
+                              copiar={copiar}
+                              copiado={copiado}
+                              etiqueta="el DNI"
+                              className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc"
                             >
-                              {copiado === `dni-${i}` ? "DNI copiado" : `DNI ${p.dni}`}
-                            </button>
+                              DNI {p.dni}
+                            </ValorCopiable>
                           )}
                         </div>
                       </li>
@@ -231,6 +311,9 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                     </h3>
                     <BotonCopiar texto={descripcion} clave="descripcion" copiar={copiar} copiado={copiado} etiqueta="Copiar texto" />
                   </div>
+                  {/* Este texto NO se convierte en botón a propósito: es
+                      largo y hay que poder seleccionar una frase suelta. El
+                      botón de arriba copia el conjunto. */}
                   <p className="text-[13.5px] text-ios-texto dark:text-ios-texto-osc leading-relaxed whitespace-pre-wrap">
                     {descripcion}
                   </p>
@@ -262,9 +345,14 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                     );
                   })}
                 </div>
-                <label htmlFor="nota" className="block text-[12px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc mt-4 mb-1.5">
-                  Nota interna de oficina
-                </label>
+                <div className="flex items-center justify-between gap-3 mt-4 mb-1.5">
+                  <label htmlFor="nota" className="text-[12px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc">
+                    Nota interna de oficina
+                  </label>
+                  {nota && (
+                    <BotonCopiar texto={nota} clave="nota" copiar={copiar} copiado={copiado} />
+                  )}
+                </div>
                 <textarea
                   id="nota"
                   value={nota}
