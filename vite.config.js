@@ -10,9 +10,14 @@ export default defineConfig({
        `npm run dev:mock` lo activa; `npm run dev` y el build nunca. */
     ...(process.env.MOCK_API === "1" ? [mockApi()] : []),
     VitePWA({
-      /* "prompt" en vez de "autoUpdate": la app avisa y el usuario decide cuándo
-         recargar, para no perder una ficha a medio rellenar. */
-      registerType: "prompt",
+      /* "autoUpdate": el service worker nuevo toma el control en cuanto se
+         instala (skipWaiting + clientsClaim) y la app se recarga sola.
+         Empecé con "prompt" para no perder una ficha a medio rellenar, pero
+         eso dejaba a los agentes con la versión antigua atrapados: el aviso
+         para confirmar la actualización vive en la app nueva, que el service
+         worker viejo no les llegaba a servir. Y el autoguardado ya cubre el
+         riesgo original: la recarga dispara `pagehide`, que vuelca la ficha. */
+      registerType: "autoUpdate",
       includeAssets: ["icon-192.png", "icon-512.png", "apple-touch-icon.png"],
       manifest: {
         name: "Ficha de Captación · RK Palanca",

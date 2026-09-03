@@ -1,14 +1,29 @@
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { RefreshCw } from "lucide-react";
 
-/* Con registerType "prompt" la app no se recarga sola: avisa y espera.
-   Así una actualización no puede borrar una ficha a medio rellenar. */
+/* Cada cuánto se pregunta al servidor si hay versión nueva. Sin esto, una app
+   instalada y abierta durante días podría no enterarse. */
+const CADA = 30 * 60 * 1000;
+
+/* Con registerType "autoUpdate" la app se actualiza y se recarga sola, así que
+   este aviso casi nunca aparece. Se mantiene como red de seguridad: si el
+   navegador deja el service worker nuevo en espera en vez de activarlo, al
+   menos hay una forma manual de forzarlo en lugar de quedarse atascado. */
 export function ActualizacionDisponible() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
+    immediate: true,
     onRegisterError: (err) => console.warn("Service worker no registrado", err),
+    onRegisteredSW: (url, registro) => {
+      if (!registro) return;
+      setInterval(() => {
+        /* Solo tiene sentido si hay conexión: si no, la comprobación falla y
+           no aporta nada. */
+        if (navigator.onLine !== false) registro.update().catch(() => {});
+      }, CADA);
+    },
   });
 
   if (!needRefresh) return null;
