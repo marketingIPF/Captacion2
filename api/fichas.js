@@ -28,6 +28,12 @@ export default async function handler(req, res) {
         ${fila.precio}, ${JSON.stringify(fila.datos)}, ${JSON.stringify(fila.propietarios)}
       )
       on conflict (id) do update set
+        /* Un reenvío es una corrección del agente: se deja constancia para que
+           la oficina pueda verlo. El estado y la nota de oficina NO se tocan:
+           son suyos y su seguimiento no debe perderse. (Sin comillas
+           invertidas en este comentario: cerrarían la plantilla de SQL.) */
+        corregida_en = now(),
+        envios = fichas.envios + 1,
         agente_id = excluded.agente_id,
         agente_nombre = excluded.agente_nombre,
         operacion = excluded.operacion,
@@ -41,9 +47,15 @@ export default async function handler(req, res) {
         precio = excluded.precio,
         datos = excluded.datos,
         propietarios = excluded.propietarios
-      returning id, recibida_en
+      returning id, recibida_en, corregida_en, envios
     `;
-    res.status(200).json({ ok: true, id: row.id, recibida: row.recibida_en });
+    res.status(200).json({
+      ok: true,
+      id: row.id,
+      recibida: row.recibida_en,
+      corregida: row.corregida_en,
+      envios: row.envios,
+    });
   } catch (err) {
     console.error("Error guardando la ficha", err);
     /* No se filtra el error interno al cliente, pero sí la categoría: una y

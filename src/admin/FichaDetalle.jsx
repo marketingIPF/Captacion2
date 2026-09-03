@@ -113,6 +113,12 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                       <ValorCopiable valor={ficha.agenteName} clave="agente" copiar={copiar} copiado={copiado} etiqueta="el agente" />
                       <span aria-hidden="true">·</span>
                       <ValorCopiable valor={fmtFecha(ficha.recibida)} clave="fecha" copiar={copiar} copiado={copiado} etiqueta="la fecha" className="whitespace-nowrap" />
+                      {ficha.corregida && (
+                        <span className="flex items-center gap-1 rounded-md bg-rk-soft px-1.5 py-0.5 text-[11px] font-bold text-rk-naranja whitespace-nowrap">
+                          <Pencil size={10} aria-hidden="true" />
+                          Corregida {fmtFecha(ficha.corregida)}
+                        </span>
+                      )}
                       {ficha.data.referencia && (
                         <>
                           <span aria-hidden="true">·</span>

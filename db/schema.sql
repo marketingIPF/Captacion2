@@ -24,6 +24,11 @@ create table if not exists fichas (
   precio          numeric(12,2),
 
   -- Estado del seguimiento en oficina.
+  -- Un agente puede reenviar la ficha para corregir un dato: el envío es
+  -- idempotente por id, y esto deja constancia de que ha cambiado.
+  corregida_en    timestamptz,
+  envios          int not null default 1,
+
   estado          text not null default 'nueva'
                   check (estado in ('nueva', 'publicada', 'descartada')),
   nota_oficina    text,
@@ -35,6 +40,8 @@ create table if not exists fichas (
 );
 
 create index if not exists fichas_recibida_idx on fichas (recibida_en desc);
+create index if not exists fichas_movimiento_idx
+  on fichas (coalesce(corregida_en, recibida_en) desc);
 create index if not exists fichas_agente_idx   on fichas (agente_id);
 create index if not exists fichas_estado_idx   on fichas (estado);
 create index if not exists fichas_datos_idx    on fichas using gin (datos);

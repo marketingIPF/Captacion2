@@ -18,7 +18,7 @@ import { Propietarios } from "../components/Propietarios.jsx";
 import { PreviewModal } from "./PreviewModal.jsx";
 import { useToast } from "../hooks/useToast.jsx";
 
-export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft, onEnviada, onChangeAgent }) {
+export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft, onEnviada, onChangeAgent, esCorreccion = false }) {
   const [abierta, setAbierta] = useState("ident");
   const refSeccion = useRef({});   // la tarjeta de cada sección
   const refPanel = useRef({});     // su contenido plegable
@@ -167,7 +167,9 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
           <div className="min-w-0 flex items-center gap-2.5">
             <Avatar agente={agente} tam={36} />
             <div className="min-w-0">
-              <p className="text-[11px] font-bold tracking-widest uppercase text-rk-naranja">Nueva ficha</p>
+              <p className="text-[11px] font-bold tracking-widest uppercase text-rk-naranja">
+              {esCorreccion ? "Corrigiendo ficha" : "Nueva ficha"}
+            </p>
               <p className="text-[15px] font-semibold text-ios-texto truncate">{agente.name}</p>
             </div>
           </div>
@@ -342,13 +344,20 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
       )}
 
       <div className="px-4 mt-5 space-y-2.5">
+        {esCorreccion && (
+          <p className="rounded-2xl bg-rk-soft border border-rk-softBorde px-4 py-3 text-[12.5px] text-ios-texto leading-snug">
+            Estás corrigiendo una ficha que ya está en la oficina. Al reenviarla
+            se actualiza la que hay —no se crea otra— y Julia la ve al momento.
+          </p>
+        )}
         <button
           type="button"
           onClick={intentarEnviar}
           className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-[17px] text-white bg-rk-naranja active:scale-95 transition"
           style={{ boxShadow: "0 8px 24px rgba(207,115,27,.35)" }}
         >
-          <Send size={19} aria-hidden="true" /> Revisar y enviar
+          <Send size={19} aria-hidden="true" />
+          {esCorreccion ? "Revisar y reenviar" : "Revisar y enviar"}
         </button>
         <button
           type="button"
@@ -367,6 +376,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
         <PreviewModal
           ficha={ficha}
           pin={pin}
+          esCorreccion={esCorreccion}
           onClose={() => setPreview(false)}
           onEnviada={onEnviada}
         />

@@ -46,15 +46,18 @@ export async function listar(sql, body, res) {
   const patron = texto ? `%${texto}%` : null;
 
   const filas = await sql`
-    select id, recibida_en, agente_id, agente_nombre, estado, operacion, tipo,
-           referencia, direccion, numero, poblacion, precio
+    select id, recibida_en, corregida_en, envios, agente_id, agente_nombre,
+           estado, operacion, tipo, referencia, direccion, numero, poblacion, precio
     from fichas
     where (${estado}::text is null or estado = ${estado})
       and (${agente}::text is null or agente_id = ${agente})
       and (${patron}::text is null or
            direccion ilike ${patron} or poblacion ilike ${patron} or
            referencia ilike ${patron} or agente_nombre ilike ${patron})
-    order by recibida_en desc
+    /* Por lo último que se ha movido: una corrección del agente interesa
+       tanto como una captación nueva, y si no subiera al principio pasaría
+       inadvertida. */
+    order by coalesce(corregida_en, recibida_en) desc
     limit ${limite} offset ${desde}
   `;
 

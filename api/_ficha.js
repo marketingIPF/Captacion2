@@ -70,6 +70,8 @@ export const filaAFicha = (row) => ({
   creada: row.creada_en,
   recibida: row.recibida_en,
   actualizada: row.actualizada_en,
+  corregida: row.corregida_en || null,
+  envios: row.envios ?? 1,
   agenteId: row.agente_id,
   agenteName: row.agente_nombre,
   estado: row.estado,
@@ -83,6 +85,8 @@ export const filaAFicha = (row) => ({
 export const filaAResumen = (row) => ({
   id: row.id,
   recibida: row.recibida_en,
+  corregida: row.corregida_en || null,
+  envios: row.envios ?? 1,
   /* El id permite pintar el avatar; no revela nada que no muestre ya el
      nombre, que va justo al lado. */
   agenteId: row.agente_id,

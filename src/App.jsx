@@ -30,6 +30,10 @@ export default function App() {
 
   const ultimoAgente = useMemo(() => load(K.AGENT, null), []);
 
+  /* ¿La ficha en pantalla ya está en la oficina? Cambia los textos del
+     formulario y del envío: reenviarla la actualiza, no crea otra. */
+  const corrigiendo = useMemo(() => sent.some((x) => x.id === ficha.id), [sent, ficha.id]);
+
   useEffect(() => { save(K.DRAFTS, drafts); }, [drafts]);
   useEffect(() => { save(K.SENT, sent); }, [sent]);
 
@@ -177,10 +181,14 @@ export default function App() {
     [agente]
   );
 
+  /* Sirve para borradores y para corregir una ya enviada: en el segundo caso
+     la ficha conserva su id, así que al reenviarla el servidor actualiza la
+     que existe en vez de crear otra. */
   const openDraft = (f) => {
+    const yaEnviada = sent.some((x) => x.id === f.id);
     setFicha(f);
     setTab("ficha");
-    toast("Borrador abierto", "info");
+    toast(yaEnviada ? "Corrige lo que haga falta y reenvía" : "Borrador abierto", "info");
   };
 
   /* Reintento manual desde el historial. */
@@ -188,7 +196,7 @@ export default function App() {
     const res = await enviarAlServidor(f, pin);
     if (res.ok) {
       desencolar(f.id);
-      setSent((p) => p.map((x) => (x.id === f.id ? { ...x, envio: { estado: "enviada" } } : x)));
+      setSent((p) => p.map((x) => (x.id === f.id ? { ...x, envio: { estado: "enviada", envios: res.envios } } : x)));
       setEnCola(pendientes());
       toast("Ficha enviada a la oficina");
     } else if (res.tipo === "rechazada") {
@@ -255,6 +263,7 @@ export default function App() {
           onSaveDraft={saveDraft}
           onEnviada={onEnviada}
           onChangeAgent={setAgenteActivo}
+          esCorreccion={corrigiendo}
         />
       )}
       {tab === "historial" && (

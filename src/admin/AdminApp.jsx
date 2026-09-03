@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
@@ -223,7 +223,7 @@ export function AdminApp() {
                 <tr>
                   <th scope="col" className="px-4 py-2.5 font-bold">Inmueble</th>
                   <th scope="col" className="px-4 py-2.5 font-bold hidden md:table-cell">Agente</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold hidden sm:table-cell">Recibida</th>
+                  <th scope="col" className="px-4 py-2.5 font-bold hidden sm:table-cell">Última entrada</th>
                   <th scope="col" className="px-4 py-2.5 font-bold text-right">Precio</th>
                   <th scope="col" className="px-4 py-2.5 font-bold">Estado</th>
                 </tr>
@@ -254,7 +254,16 @@ export function AdminApp() {
                           </span>
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[13px] text-ios-texto2 dark:text-ios-texto2-osc hidden sm:table-cell whitespace-nowrap">{fmtFecha(f.recibida)}</td>
+                      <td className="px-4 py-3 hidden sm:table-cell whitespace-nowrap">
+                        <div className="text-[13px] text-ios-texto2 dark:text-ios-texto2-osc">
+                          {fmtFecha(f.corregida || f.recibida)}
+                        </div>
+                        {f.corregida && (
+                          <div className="text-[11px] font-bold text-rk-naranja flex items-center gap-1">
+                            <PencilLine size={11} aria-hidden="true" /> Corregida por el agente
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-[14px] font-bold text-ios-texto dark:text-ios-texto-osc text-right whitespace-nowrap">{fmtPrecio(f.precio)}</td>
                       <td className="px-4 py-3">
                         <span

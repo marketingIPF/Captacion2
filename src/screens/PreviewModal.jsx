@@ -4,7 +4,7 @@ import { textoFicha } from "../lib/resumen.js";
 import { enviarAlServidor, encolar } from "../lib/cola.js";
 import { useToast } from "../hooks/useToast.jsx";
 
-export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
+export function PreviewModal({ ficha, pin, onClose, onEnviada, esCorreccion = false }) {
   const texto = textoFicha(ficha);
   const [estado, setEstado] = useState("idle"); // idle | enviando | ok | offline | servidor | rechazada
   const [detalle, setDetalle] = useState("");
@@ -27,7 +27,7 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
     const res = await enviarAlServidor(ficha, pin);
 
     if (res.ok) {
-      archivar({ estado: "enviada", recibida: res.recibida });
+      archivar({ estado: "enviada", recibida: res.recibida, envios: res.envios });
       setEstado("ok");
       setTimeout(onClose, 1500);
       return;
@@ -74,7 +74,9 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
       >
         <div className="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mt-3" aria-hidden="true" />
         <div className="flex items-center justify-between px-6 pt-3 pb-2">
-          <h2 id="preview-titulo" className="text-[18px] font-bold text-ios-texto">Revisar y enviar</h2>
+          <h2 id="preview-titulo" className="text-[18px] font-bold text-ios-texto">
+            {esCorreccion ? "Revisar y reenviar" : "Revisar y enviar"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -87,7 +89,9 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
 
         <div className="px-6 overflow-y-auto pb-4 flex-1">
           <p className="text-[12.5px] text-ios-texto2 mb-3 leading-snug">
-            Esto es lo que recibirá la oficina. Repásalo antes de enviar.
+            {esCorreccion
+              ? "Esto sustituirá a lo que la oficina tiene ahora mismo."
+              : "Esto es lo que recibirá la oficina. Repásalo antes de enviar."}
           </p>
           <pre className="text-[12px] text-gray-800 whitespace-pre-wrap font-mono bg-ios-fondo rounded-xl p-3 leading-relaxed">
             {texto}
@@ -107,7 +111,7 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
               : estado === "offline" ? (<><CloudOff size={18} aria-hidden="true" /> Guardada · reintentar ahora</>)
               : estado === "servidor" ? (<><ServerCrash size={18} aria-hidden="true" /> Guardada · reintentar ahora</>)
               : estado === "rechazada" ? (<><Send size={18} aria-hidden="true" /> Reintentar</>)
-              : (<><Send size={18} aria-hidden="true" /> Enviar a la oficina</>)}
+              : (<><Send size={18} aria-hidden="true" /> {esCorreccion ? "Reenviar corregida" : "Enviar a la oficina"}</>)}
           </button>
 
           <p className="text-center text-[12px] mt-2 leading-snug" role="status">

@@ -245,6 +245,8 @@ const responder = (res, code, cuerpo) => {
 const resumenDe = (f) => ({
   id: f.id,
   recibida: f.recibida_en,
+  corregida: f.corregida_en || null,
+  envios: f.envios ?? 1,
   agenteId: f.agente_id,
   agenteName: f.agente_nombre,
   estado: f.estado,
@@ -281,6 +283,9 @@ export function mockApi() {
           const previa = fichas.get(f.id);
           fichas.set(f.id, {
             ...(previa || { estado: "nueva", nota_oficina: null, recibida_en: ahora }),
+            /* Un reenvío es una corrección: se marca, igual que en producción. */
+            corregida_en: previa ? ahora : null,
+            envios: (previa?.envios ?? 0) + 1,
             id: f.id,
             creada_en: f.creada || ahora,
             actualizada_en: ahora,
@@ -298,7 +303,11 @@ export function mockApi() {
             datos: f.data,
             propietarios: f.propietarios || [],
           });
-          return responder(res, 200, { ok: true, id: f.id, recibida: ahora });
+          const guardada = fichas.get(f.id);
+          return responder(res, 200, {
+            ok: true, id: f.id, recibida: guardada.recibida_en,
+            corregida: guardada.corregida_en, envios: guardada.envios,
+          });
         }
 
         if (ruta === "/api/admin") {
@@ -309,7 +318,8 @@ export function mockApi() {
           if (!cabecera.toLowerCase().startsWith("bearer ")) {
             return responder(res, 401, { error: "Falta el token de sesión" });
           }
-          const todas = [...fichas.values()].sort((a, b) => b.recibida_en.localeCompare(a.recibida_en));
+          const movimiento = (f) => f.corregida_en || f.recibida_en;
+          const todas = [...fichas.values()].sort((a, b) => movimiento(b).localeCompare(movimiento(a)));
 
           if (body.accion === "resumen") {
             const porEstado = ESTADOS.map((e) => ({ estado: e, n: todas.filter((f) => f.estado === e).length })).filter((x) => x.n);

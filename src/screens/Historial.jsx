@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Home, Trash2, Send, Pencil, Loader2, AlertCircle, Search, CloudOff, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Home, Trash2, Send, Pencil, Loader2, AlertCircle, Search, CloudOff, RefreshCw, CheckCircle2, PencilLine } from "lucide-react";
 import { TIPOS_INMUEBLE } from "../data/tipos.js";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
 import { resumenFicha } from "../lib/ficha.js";
@@ -134,7 +134,10 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
                   )}
                   {!esBorrador && estadoEnvio === "enviada" && (
                     <div className="text-[11.5px] text-green-700 font-semibold flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 size={12} aria-hidden="true" /> Recibida en la oficina
+                      <CheckCircle2 size={12} aria-hidden="true" />
+                      {f.envio?.envios > 1
+                        ? `Corregida y reenviada · ${f.envio.envios} envíos`
+                        : "Recibida en la oficina"}
                     </div>
                   )}
                 </div>
@@ -169,7 +172,7 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
                     onClick={() => onOpenDraft(f)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-semibold text-gray-700 active:bg-ios-fondo transition"
                   >
-                    <Pencil size={15} aria-hidden="true" /> Ver / duplicar
+                    <PencilLine size={15} aria-hidden="true" /> Corregir y reenviar
                   </button>
                 )}
                 <button

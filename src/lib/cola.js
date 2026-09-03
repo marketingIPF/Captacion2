@@ -42,8 +42,8 @@ export async function enviarAlServidor(ficha, pin) {
     });
 
     if (r.ok) {
-      const { recibida } = await r.json();
-      return { ok: true, recibida };
+      const { recibida, envios } = await r.json();
+      return { ok: true, recibida, envios };
     }
 
     const cuerpo = await r.json().catch(() => ({}));
