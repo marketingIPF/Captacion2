@@ -29,8 +29,10 @@ create table if not exists fichas (
   corregida_en    timestamptz,
   envios          int not null default 1,
 
+  -- Fases del proceso, en orden. "baja" es la salida: la captación no vale.
   estado          text not null default 'nueva'
-                  check (estado in ('nueva', 'publicada', 'descartada')),
+                  check (estado in ('nueva', 'agendada_fotos', 'pendiente',
+                                    'publicada', 'baja')),
   nota_oficina    text,
   actualizada_por text,          -- email de quien lo tocó desde el panel
 

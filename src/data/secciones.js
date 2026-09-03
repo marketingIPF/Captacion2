@@ -9,6 +9,12 @@ import { RESIDENCIAL, EDIFICADO, CON_PARCELA, EN_EDIFICIO } from "./tipos.js";
      when      → predicado (data) => bool, para dependencias entre campos
      required  → obligatorio para poder enviar
      validate  → nombre del validador en lib/validacion.js
+     unidad    → unidad REAL de medida (m², €, plantas). Se muestra en la
+                 etiqueta del formulario Y detrás del valor en el panel.
+                 Un contador ("nº") o un año NO son unidades: para eso está
+                 `ph`, que solo afecta al hueco del campo. Confundirlos hacía
+                 que el panel mostrara "4 nº" o "1950 año".
+     ph        → texto de ayuda dentro del campo, nunca se muestra con el dato
    Un campo que no aplica no se pinta, no cuenta para el progreso y no
    viaja en el correo.
    ================================================================== */
@@ -96,7 +102,7 @@ export const SECCIONES = [
       }),
       seg("honorarios", "Honorarios pactados", ["% sobre venta", "Importe fijo", "Pendiente"]),
       num("honorariosValor", "Valor de los honorarios", {
-        unidad: "% o €",
+        ph: "3 (%) o 15000 (€)",
         when: (d) => !!d.honorarios && d.honorarios !== "Pendiente",
       }),
     ],
@@ -112,14 +118,14 @@ export const SECCIONES = [
       num("mParcela", "M² de parcela", { unidad: "m²", tipos: CON_PARCELA }),
       num("edificabilidad", "Edificabilidad", { unidad: "m²/m²", tipos: ["Terreno"] }),
       num("mTerraza", "M² de terraza", { unidad: "m²", tipos: RESIDENCIAL }),
-      num("anio", "Año de construcción", { unidad: "año", tipos: EDIFICADO, validate: "anio" }),
+      num("anio", "Año de construcción", { ph: "1950", tipos: EDIFICADO, validate: "anio" }),
       num("alturas", "Alturas del edificio", { unidad: "plantas", tipos: EN_EDIFICIO }),
-      num("dormitorios", "Dormitorios", { unidad: "nº", tipos: RESIDENCIAL }),
-      num("banos", "Baños", { unidad: "nº", tipos: RESIDENCIAL }),
-      num("aseos", "Aseos", { unidad: "nº", tipos: RESIDENCIAL }),
+      num("dormitorios", "Dormitorios", { ph: "Nº", tipos: RESIDENCIAL }),
+      num("banos", "Baños", { ph: "Nº", tipos: RESIDENCIAL }),
+      num("aseos", "Aseos", { ph: "Nº", tipos: RESIDENCIAL }),
       num("salon", "Salón", { unidad: "m²", tipos: RESIDENCIAL }),
       num("cocinaM", "Cocina", { unidad: "m²", tipos: RESIDENCIAL }),
-      num("plazas", "Plazas de aparcamiento", { unidad: "nº", tipos: ["Garaje"] }),
+      num("plazas", "Plazas de aparcamiento", { ph: "Nº", tipos: ["Garaje"] }),
       num("escaparate", "Metros de escaparate", { unidad: "m", tipos: ["Local"] }),
       seg("salidaHumos", "Salida de humos", ["Sí", "No"], { tipos: ["Local"] }),
       chips("equipamiento", "Equipamiento adicional", ["Armarios empotrados", "Garaje", "Trastero", "Terraza", "Balcón", "Piscina", "Jardín", "Buhardilla"], { tipos: RESIDENCIAL }),

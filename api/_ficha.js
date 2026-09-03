@@ -14,7 +14,9 @@ export function aNumero(v) {
 const texto = (v, max = 300) =>
   v === undefined || v === null || v === "" ? null : String(v).slice(0, max);
 
-export const ESTADOS = ["nueva", "publicada", "descartada"];
+/* Las fases del proceso, en orden. "baja" es la salida: la captación no vale.
+   El orden importa: es el que se pinta en el panel. */
+export const ESTADOS = ["nueva", "agendada_fotos", "pendiente", "publicada", "baja"];
 
 /* Valida y normaliza lo que manda el cliente. Devuelve { ok, fila } o { ok:false, error }. */
 export function fichaAFila(ficha) {

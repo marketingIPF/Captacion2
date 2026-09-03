@@ -172,7 +172,7 @@ const AGENTES = [
 const POBLACIONES = ["Valencia", "Alboraya", "Meliana", "Foios", "Almàssera", "Tavernes Blanques"];
 const CALLES = ["Avenida del Puerto", "Calle Colón", "Camí del Mar", "Plaza del Ayuntamiento", "Calle Sagunto", "Avenida Blasco Ibáñez"];
 const TIPOS = ["Piso", "Ático", "Casa / Chalet", "Local", "Garaje", "Terreno"];
-const ESTADOS = ["nueva", "publicada", "descartada"];
+const ESTADOS = ["nueva", "agendada_fotos", "pendiente", "publicada", "baja"];
 
 const fichas = new Map();
 

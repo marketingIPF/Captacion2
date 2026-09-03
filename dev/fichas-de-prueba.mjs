@@ -67,7 +67,7 @@ const EJEMPLOS = [
     diasAtras: 4,
     agenteId: "mavi-castillo",
     agenteName: "Mavi Castillo Esteban",
-    estado: "publicada",
+    estado: "agendada_fotos",
     propietarios: [{ nombre: "Josep Marí Tormo", telefono: "622110099", dni: "11111111H", email: "" }],
     data: {
       operacion: "Venta", tipo: "Casa / Chalet", referencia: "#05620",
@@ -86,7 +86,7 @@ const EJEMPLOS = [
       acs: "Aerotermia", clima: "Conductos", calefaccion: "Suelo radiante", paredes: "Lisas",
       cotaCero: "Sí", fachada: "Monocapa", estado: "Para entrar", orientacion: "Sur",
       vistas: ["Despejadas"], servicios: ["Colegios", "Supermercado", "Parques"],
-      notasInternas: `${MARCA} Ficha de ejemplo para la formación. Propietario inventado. Publicada en portales el 30/08. Visitas solo por la tarde.`,
+      notasInternas: `${MARCA} Ficha de ejemplo para la formación. Propietario inventado. Reportaje de fotos el jueves 11 a las 10:00. Visitas solo por la tarde.`,
       descripcionPublica:
         "Chalet independiente de 245 m² en parcela de 450 m² con piscina y jardín. Cuatro dormitorios, suelo radiante y aerotermia. Listo para entrar a vivir.",
     },
@@ -95,7 +95,7 @@ const EJEMPLOS = [
     diasAtras: 11,
     agenteId: "fede-carbonell",
     agenteName: "Fede Carbonell",
-    estado: "descartada",
+    estado: "baja",
     propietarios: [{ nombre: "Inmuebles Túria S.L.", telefono: "963111222", dni: "", email: "" }],
     data: {
       operacion: "Alquiler", tipo: "Local", referencia: "#05621",

@@ -47,14 +47,18 @@ body {
    mantener el contraste sobre el fondo gris. */
 :root {
   --estado-nueva: #a95a12;
+  --estado-agendada_fotos: #7a3aa8;
+  --estado-pendiente: #0058b8;
   --estado-publicada: #1e7a34;
-  --estado-descartada: #6c6c70;
+  --estado-baja: #6c6c70;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --estado-nueva: #f0a25a;
+    --estado-agendada_fotos: #d9a2f0;
+    --estado-pendiente: #6fb4ff;
     --estado-publicada: #5fd77e;
-    --estado-descartada: #b0b0b5;
+    --estado-baja: #b0b0b5;
   }
 }
