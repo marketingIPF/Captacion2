@@ -27,7 +27,12 @@ export const SECCIONES = [
     icon: User,
     fields: [
       txt("prospecto", "Prospecto", { ph: "Nombre del prospecto" }),
-      txt("referencia", "Referencia interna", { ph: "REF-0000" }),
+      txt("referencia", "Referencia interna", {
+        ph: "#05618",
+        inputMode: "numeric",
+        validate: "referencia",
+        normalizar: "referencia",
+      }),
       seg("operacion", "Operación", ["Venta", "Alquiler"], { required: true }),
       { key: "tipo", kind: "tipo", label: "Tipo de inmueble", required: true },
       { key: "refCatastral", kind: "catastro", label: "Referencia catastral", validate: "refCatastral" },

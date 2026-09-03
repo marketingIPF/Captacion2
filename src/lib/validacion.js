@@ -45,6 +45,24 @@ export function validarRefCatastral(v) {
   return "";
 }
 
+/* La referencia interna de la agencia es "#" + cinco dígitos: #05618.
+   Se acepta escrita de cualquier manera razonable (5618, 05618, #5618) y se
+   normaliza al salir del campo. */
+export function validarReferencia(v) {
+  if (!v) return "";
+  const s = String(v).trim();
+  if (!/^#?\d{1,5}$/.test(s)) return "Formato #00000 (por ejemplo #05618)";
+  return "";
+}
+
+export function normalizarReferencia(v) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  const m = /^#?(\d{1,5})$/.exec(s);
+  if (!m) return s; // si no cuadra, se deja igual y la validación avisa
+  return `#${m[1].padStart(5, "0")}`;
+}
+
 export function validarEmail(v) {
   if (!v) return "";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return "Email no válido";
@@ -62,6 +80,7 @@ const CONTEXTUALES = {
 };
 
 const SIMPLES = {
+  referencia: validarReferencia,
   cp: validarCp,
   anio: validarAnio,
   refCatastral: validarRefCatastral,

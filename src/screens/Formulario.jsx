@@ -2,7 +2,13 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { ChevronDown, Send, Save, User, AlertCircle, Check } from "lucide-react";
 import { SECCIONES } from "../data/secciones.js";
 import { camposAplicables, calcularProgreso, revisarFicha, seccionAplica } from "../lib/ficha.js";
-import { validarCampo } from "../lib/validacion.js";
+import { validarCampo, normalizarReferencia } from "../lib/validacion.js";
+
+/* Normalizadores que puede declarar un campo del esquema. */
+const NORMALIZADORES = { referencia: normalizarReferencia };
+
+/* Índice plano de todos los campos, para no recorrer el esquema en cada blur. */
+const TODOS_LOS_CAMPOS = new Map(SECCIONES.flatMap((s) => s.fields.map((f) => [f.key, f])));
 import { Avatar } from "../components/Avatar.jsx";
 import { Campo } from "../components/Campo.jsx";
 import { RefCatastral } from "../components/RefCatastral.jsx";
@@ -29,7 +35,23 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
     (list) => setFicha((f) => ({ ...f, propietarios: list })),
     [setFicha]
   );
-  const marcarTocado = useCallback((k) => setTocados((t) => ({ ...t, [k]: true })), []);
+  /* Al salir de un campo se marca como tocado y, si el esquema declara un
+     normalizador, se ordena el valor: así el agente puede escribir "5618" y
+     queda "#05618" sin pelearse con el formato mientras teclea. */
+  const marcarTocado = useCallback(
+    (clave) => {
+      setTocados((t) => ({ ...t, [clave]: true }));
+      const normalizar = NORMALIZADORES[TODOS_LOS_CAMPOS.get(clave)?.normalizar];
+      if (!normalizar) return;
+      setFicha((f) => {
+        const actual = f.data[clave];
+        if (actual === undefined || actual === "") return f;
+        const limpio = normalizar(actual);
+        return limpio === actual ? f : { ...f, data: { ...f.data, [clave]: limpio } };
+      });
+    },
+    [setFicha]
+  );
 
   /* Lleva la sección recién abierta justo debajo de la cabecera fija.
      `ajuste` descuenta la altura del panel que se está cerrando cuando está

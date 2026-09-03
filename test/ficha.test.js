@@ -34,3 +34,28 @@ test("Números: los decimales sobreviven", () => {
   assert.equal(parseNumero("250.000"), 250000);
   assert.equal(parseNumero(""), null);
 });
+
+test("la referencia interna se normaliza al formato de la agencia", async () => {
+  const { normalizarReferencia, validarReferencia } = await import("../src/lib/validacion.js");
+
+  /* El agente puede escribirla de varias formas; siempre queda #00000. */
+  assert.equal(normalizarReferencia("5618"), "#05618");
+  assert.equal(normalizarReferencia("05618"), "#05618");
+  assert.equal(normalizarReferencia("#5618"), "#05618");
+  assert.equal(normalizarReferencia("#05618"), "#05618");
+  assert.equal(normalizarReferencia(" 5618 "), "#05618");
+  assert.equal(normalizarReferencia("1"), "#00001");
+  assert.equal(normalizarReferencia("99999"), "#99999");
+  assert.equal(normalizarReferencia(""), "", "vacía sigue vacía: el campo es opcional");
+
+  assert.equal(validarReferencia("#05618"), "");
+  assert.equal(validarReferencia("5618"), "");
+  assert.equal(validarReferencia(""), "");
+  assert.match(validarReferencia("REF-0001"), /#00000/, "el formato viejo ya no vale");
+  assert.match(validarReferencia("123456"), /#00000/, "más de cinco dígitos no cabe");
+  assert.match(validarReferencia("#abc"), /#00000/);
+
+  /* Lo que no cuadra se deja intacto para que la validación pueda avisar,
+     en vez de destrozarlo silenciosamente. */
+  assert.equal(normalizarReferencia("REF-0001"), "REF-0001");
+});
