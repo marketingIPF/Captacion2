@@ -182,46 +182,58 @@ export function AdminApp() {
           />
         </div>
 
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
-          <div className="relative flex-1">
-            <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ios-texto3" aria-hidden="true" />
-            <label htmlFor="buscar" className="sr-only">Buscar captación</label>
-            <input
-              id="buscar"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por dirección, población, referencia o agente…"
-              className="w-full rounded-xl pl-10 pr-4 py-2.5 text-[14px] outline-none border transition bg-white dark:bg-ios-superficie-osc text-ios-texto dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20"
-            />
+        {/* Buscador y acciones arriba, las fases debajo: en una sola fila,
+            con seis fases (una de ellas "Agendada para fotos") y dos botones,
+            todo quedaba apretado y las etiquetas se partían. */}
+        <div className="space-y-3 mb-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 min-w-0">
+              <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ios-texto3" aria-hidden="true" />
+              <label htmlFor="buscar" className="sr-only">Buscar captación</label>
+              <input
+                id="buscar"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por dirección, población, referencia o agente…"
+                className="w-full rounded-xl pl-10 pr-4 py-2.5 text-[14px] outline-none border transition bg-white dark:bg-ios-superficie-osc text-ios-texto dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20"
+              />
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={exportarCsv}
+                className="flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold border transition active:scale-95 bg-white dark:bg-ios-superficie-osc text-ios-texto2 dark:text-ios-texto2-osc border-ios-borde dark:border-ios-borde-osc"
+              >
+                <Download size={15} aria-hidden="true" /> CSV
+              </button>
+              <button
+                type="button"
+                onClick={imprimirListado}
+                disabled={preparandoImpresion}
+                className="flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold border transition active:scale-95 disabled:opacity-60 bg-white dark:bg-ios-superficie-osc text-ios-texto2 dark:text-ios-texto2-osc border-ios-borde dark:border-ios-borde-osc"
+              >
+                {preparandoImpresion ? (
+                  <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <Printer size={15} aria-hidden="true" />
+                )}
+                Imprimir
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <Chip activo={!filtro} onClick={() => setFiltro("")} color="#a95a12">Todas</Chip>
+
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar por fase">
+            <Chip activo={!filtro} onClick={() => setFiltro("")} color="#a95a12">
+              Todas
+            </Chip>
             {ESTADOS.map((e) => (
               <Chip key={e.key} activo={filtro === e.key} onClick={() => setFiltro(e.key)} color={e.fuerte}>
-                {e.label} {conteos[e.key] ? `(${conteos[e.key]})` : ""}
+                {e.label}
+                {conteos[e.key] ? (
+                  <span className={activoTenue(filtro === e.key)}>{conteos[e.key]}</span>
+                ) : null}
               </Chip>
             ))}
-            <button
-              type="button"
-              onClick={exportarCsv}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold border transition active:scale-95 bg-white dark:bg-ios-superficie-osc text-gray-700 dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc"
-            >
-              <Download size={15} aria-hidden="true" /> CSV
-            </button>
-            <button
-              type="button"
-              onClick={imprimirListado}
-              disabled={preparandoImpresion}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold border transition active:scale-95 disabled:opacity-60 bg-white dark:bg-ios-superficie-osc text-ios-texto2 dark:text-ios-texto2-osc border-ios-borde dark:border-ios-borde-osc"
-            >
-              {preparandoImpresion ? (
-                <Loader2 size={15} className="animate-spin" aria-hidden="true" />
-              ) : (
-                <Printer size={15} aria-hidden="true" />
-              )}
-              Imprimir
-            </button>
           </div>
         </div>
 
@@ -248,7 +260,11 @@ export function AdminApp() {
         )}
 
         {/* Listado */}
-        <div className="rounded-2xl border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-superficie-osc overflow-hidden">
+        {/* overflow-x-auto y no -hidden: en pantallas estrechas la etiqueta de
+            fase más larga se recortaba a media palabra. Ahora la tabla se
+            desplaza dentro de su caja en vez de perder texto, y la página
+            nunca se desplaza en horizontal. */}
+        <div className="rounded-2xl border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-superficie-osc overflow-x-auto">
           {cargando && fichas.length === 0 && (
             <div className="py-20 flex justify-center"><Loader2 size={24} className="animate-spin text-rk-naranja" aria-label="Cargando" /></div>
           )}
@@ -263,7 +279,7 @@ export function AdminApp() {
           )}
 
           {fichas.length > 0 && (
-            <table className="w-full text-left">
+            <table className="w-full min-w-[560px] text-left">
               <caption className="sr-only">Listado de captaciones recibidas</caption>
               <thead className="bg-ios-fondo dark:bg-ios-elevada-osc/40 text-[11px] uppercase tracking-wide text-ios-texto2 dark:text-ios-texto2-osc">
                 <tr>
@@ -385,6 +401,10 @@ function Tarjeta({ valor, etiqueta, destacada }) {
     </div>
   );
 }
+
+/* El contador se atenúa para que la etiqueta siga siendo lo que se lee. */
+const activoTenue = (activo) =>
+  `ml-1.5 tabular-nums ${activo ? "text-white/70" : "text-ios-texto3"}`;
 
 function Chip({ activo, onClick, color, children }) {
   return (
