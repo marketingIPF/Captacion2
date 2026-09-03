@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, Pencil } from "lucide-react";
+import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, Pencil, Printer } from "lucide-react";
 import {
   bloquesFicha, bloqueComoTexto, textoFicha, tituloFicha, direccionCompleta, cifrasClave,
 } from "../lib/resumen.js";
@@ -10,6 +10,7 @@ import { llamar, ESTADOS } from "./api.js";
 import { useCopiar } from "./useCopiar.js";
 import { FilaCopiable, BotonCopiar, ValorCopiable } from "./Copiable.jsx";
 import { EditarFicha } from "./EditarFicha.jsx";
+import { FichaImprimible } from "./Imprimible.jsx";
 
 const soloDigitos = (t) => String(t || "").replace(/[^\d+]/g, "");
 
@@ -19,6 +20,7 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
   const [nota, setNota] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [editando, setEditando] = useState(false);
+  const [imprimiendo, setImprimiendo] = useState(false);
   const panel = useRef(null);
   const { copiar, copiado, error: errorCopia } = useCopiar();
 
@@ -40,6 +42,15 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onCerrar]);
+
+  /* El documento se monta, se deja pintar y se abre el diálogo del sistema.
+     Sin los dos frames, Chrome puede imprimir la hoja en blanco. */
+  const imprimir = async () => {
+    setImprimiendo(true);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    window.print();
+    setImprimiendo(false);
+  };
 
   const guardar = async (cambios) => {
     setGuardando(true);
@@ -141,6 +152,17 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                   >
                     {fmtPrecio(ficha.data.precio)}
                   </ValorCopiable>
+                  {!editando && (
+                    <button
+                      type="button"
+                      onClick={imprimir}
+                      aria-label="Imprimir la ficha"
+                      title="Imprimir la ficha"
+                      className="w-9 h-9 rounded-lg bg-ios-fondo dark:bg-ios-elevada-osc text-ios-texto2 dark:text-ios-texto2-osc flex items-center justify-center active:scale-95 transition"
+                    >
+                      <Printer size={16} />
+                    </button>
+                  )}
                   {!editando && (
                     <button
                       type="button"
@@ -441,6 +463,7 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
           </>
         )}
       </div>
+      {imprimiendo && ficha && <FichaImprimible ficha={ficha} />}
       <style>{`@keyframes deslizar{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
     </div>
   );

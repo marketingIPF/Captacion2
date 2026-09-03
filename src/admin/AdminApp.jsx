@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
 import { llamar, ESTADOS, estadoDe } from "./api.js";
 import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl } from "./auth.js";
 import { FichaDetalle } from "./FichaDetalle.jsx";
+import { ListadoImprimible } from "./Imprimible.jsx";
 import { AdminLogin } from "./AdminLogin.jsx";
 
 const POR_PAGINA = 25;
@@ -21,6 +22,8 @@ export function AdminApp() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [abierta, setAbierta] = useState(null);
+  const [paraImprimir, setParaImprimir] = useState(null);
+  const [preparandoImpresion, setPreparandoImpresion] = useState(false);
 
   const salir = useCallback(async () => {
     olvidarToken();
@@ -92,6 +95,36 @@ export function AdminApp() {
   };
 
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+
+  const descripcionFiltro = useMemo(() => {
+    const partes = [filtro ? `fase: ${estadoDe(filtro).label}` : "todas las fases"];
+    if (busqueda.trim()) partes.push(`búsqueda: «${busqueda.trim()}»`);
+    return partes.join(" · ");
+  }, [filtro, busqueda]);
+
+  /* Se imprime el conjunto filtrado completo, no la página que se ve: quien
+     pide "imprimir el listado" quiere el listado, no un trozo de él. */
+  const imprimirListado = async () => {
+    if (preparandoImpresion) return;
+    setPreparandoImpresion(true);
+    try {
+      const { fichas: todas } = await llamar("listar", {
+        limite: 200,
+        estado: filtro || undefined,
+        busqueda,
+      });
+      setParaImprimir(todas);
+      /* Dos frames: con uno, el diálogo del sistema puede abrirse antes de
+         que el documento esté pintado y saldría en blanco. */
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      window.print();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setParaImprimir(null);
+      setPreparandoImpresion(false);
+    }
+  };
   const conteos = useMemo(() => {
     const m = Object.fromEntries((resumen?.porEstado || []).map((e) => [e.estado, e.n]));
     return m;
@@ -108,7 +141,7 @@ export function AdminApp() {
   if (!sesion) return <AdminLogin />;
 
   return (
-    <div data-tema="panel" className="min-h-screen bg-ios-fondo dark:bg-ios-fondo-osc">
+    <div data-tema="panel" className="min-h-screen bg-ios-fondo dark:bg-ios-fondo-osc no-imprimir">
       <header className="sticky top-0 z-30 bg-ios-superficie/85 dark:bg-ios-superficie-osc/85 backdrop-blur-xl border-b border-ios-borde dark:border-ios-borde-osc">
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center gap-4">
           <Logo orientacion="horizontal" alto={26} />
@@ -175,6 +208,19 @@ export function AdminApp() {
               className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold border transition active:scale-95 bg-white dark:bg-ios-superficie-osc text-gray-700 dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc"
             >
               <Download size={15} aria-hidden="true" /> CSV
+            </button>
+            <button
+              type="button"
+              onClick={imprimirListado}
+              disabled={preparandoImpresion}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold border transition active:scale-95 disabled:opacity-60 bg-white dark:bg-ios-superficie-osc text-ios-texto2 dark:text-ios-texto2-osc border-ios-borde dark:border-ios-borde-osc"
+            >
+              {preparandoImpresion ? (
+                <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Printer size={15} aria-hidden="true" />
+              )}
+              Imprimir
             </button>
           </div>
         </div>
@@ -312,6 +358,10 @@ export function AdminApp() {
           </nav>
         )}
       </main>
+
+      {paraImprimir && (
+        <ListadoImprimible fichas={paraImprimir} total={total} descripcionFiltro={descripcionFiltro} />
+      )}
 
       {abierta && (
         <FichaDetalle

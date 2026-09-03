@@ -62,3 +62,80 @@ body {
     --estado-baja: #b0b0b5;
   }
 }
+
+/* ── Impresión ────────────────────────────────────────────────────────────
+   El panel no se imprime tal cual: se compone un documento aparte, pensado
+   para el papel. En pantalla está oculto; al imprimir, es lo único que sale.
+
+   Los navegadores no imprimen fondos salvo que el usuario lo active, así que
+   el documento se apoya en bordes y texto, nunca en rellenos de color. */
+
+.solo-impresion {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  /* Un listado de nueve columnas no cabe en vertical sin partir cada
+     dirección en tres líneas. Se le da su propia página apaisada; la ficha
+     sigue en vertical, que es como se lee un documento. */
+  @page apaisado {
+    size: A4 landscape;
+    margin: 10mm 12mm;
+  }
+
+  .solo-impresion.apaisado {
+    page: apaisado;
+  }
+
+  /* Nada de la aplicación llega al papel. El documento se monta con un
+     portal en <body>, fuera del árbol de la app, así que basta con ocultar
+     la raíz: no hay que ir tapando trozos de interfaz uno a uno. */
+  #root {
+    display: none !important;
+  }
+  .no-imprimir {
+    display: none !important;
+  }
+
+  html,
+  body,
+  #root {
+    background: #fff !important;
+    min-height: 0;
+  }
+
+  .solo-impresion {
+    display: block;
+    color: #000;
+    font-size: 10pt;
+    line-height: 1.45;
+  }
+
+  /* La cabecera de la tabla se repite en cada página. */
+  .solo-impresion thead {
+    display: table-header-group;
+  }
+
+  .solo-impresion tr,
+  .solo-impresion .bloque-ficha {
+    break-inside: avoid;
+  }
+
+  .solo-impresion .salto-antes {
+    break-before: page;
+  }
+
+  /* Un enlace impreso sin su destino no sirve de nada, pero en una ficha
+     interna tampoco queremos la URL detrás de cada nombre: solo se muestra
+     donde aporta. */
+  .solo-impresion a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 8pt;
+    color: #555;
+  }
+}
