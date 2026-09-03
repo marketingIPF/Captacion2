@@ -59,7 +59,14 @@ export default function App() {
         toast(`${r.enviadas} ficha${r.enviadas === 1 ? "" : "s"} enviada${r.enviadas === 1 ? "" : "s"} a la oficina`);
       }
       if (r.rechazadas) toast(`${r.rechazadas} ficha${r.rechazadas === 1 ? "" : "s"} no se pudo enviar. Revísala en el historial.`, "error", 6000);
-      if (!r.enviadas && !r.rechazadas && !silencioso) toast("Todavía sin conexión. Se reintentará solo.", "info");
+      if (!r.enviadas && !r.rechazadas && !silencioso) {
+        toast(
+          r.motivo === "servidor"
+            ? "La oficina no responde. Se reintentará solo."
+            : "Todavía sin conexión. Se reintentará solo.",
+          "info"
+        );
+      }
     },
     [pin, toast]
   );
@@ -192,7 +199,13 @@ export default function App() {
     } else {
       encolar(f);
       setEnCola(pendientes());
-      toast("Sigue sin haber conexión. Se reintentará solo.", "info");
+      toast(
+        res.tipo === "servidor"
+          ? `La oficina no pudo guardarla: ${res.error}. Se reintentará solo.`
+          : "Sigue sin haber conexión. Se reintentará solo.",
+        "info",
+        6000
+      );
     }
     return res;
   };

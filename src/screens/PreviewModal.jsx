@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Send, Loader2, Check, CloudOff } from "lucide-react";
+import { X, Send, Loader2, Check, CloudOff, ServerCrash } from "lucide-react";
 import { textoFicha } from "../lib/resumen.js";
 import { enviarAlServidor, encolar } from "../lib/cola.js";
 import { useToast } from "../hooks/useToast.jsx";
 
 export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
   const texto = textoFicha(ficha);
-  const [estado, setEstado] = useState("idle"); // idle | enviando | ok | encolada | rechazada
+  const [estado, setEstado] = useState("idle"); // idle | enviando | ok | offline | servidor | rechazada
   const [detalle, setDetalle] = useState("");
   const yaArchivada = useRef(false);
   const dialogRef = useRef(null);
@@ -40,10 +40,12 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
       return;
     }
 
-    /* Sin red: la ficha no se pierde, queda en cola y sale sola al volver. */
+    /* Ni sin red ni con la oficina caída se pierde la ficha: queda en cola y
+       sale sola. Lo que cambia es lo que se le cuenta al agente. */
     encolar(ficha);
-    archivar({ estado: "pendiente", error: res.error });
-    setEstado("encolada");
+    archivar({ estado: "pendiente", error: res.error, tipo: res.tipo });
+    setDetalle(res.error || "");
+    setEstado(res.tipo === "servidor" ? "servidor" : "offline");
   };
 
   const archivar = (envio) => {
@@ -52,7 +54,11 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
     onEnviada(ficha, envio);
   };
 
-  const btnBg = estado === "ok" ? "#16a34a" : estado === "encolada" ? "#d97706" : estado === "rechazada" ? "#dc2626" : "#cf731c";
+  const btnBg =
+    estado === "ok" ? "#16a34a"
+    : estado === "offline" || estado === "servidor" ? "#d97706"
+    : estado === "rechazada" ? "#dc2626"
+    : "#cf731c";
 
   return (
     <div className="fixed inset-0 z-50 flex items-end" onClick={estado === "enviando" ? undefined : onClose}>
@@ -92,22 +98,29 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada }) {
           <button
             type="button"
             onClick={enviar}
-            disabled={estado === "enviando" || estado === "ok" || estado === "encolada"}
+            disabled={estado === "enviando" || estado === "ok"}
             className="w-full py-3.5 rounded-2xl text-white font-bold flex items-center justify-center gap-2 active:scale-95 transition disabled:opacity-90"
             style={{ background: btnBg }}
           >
             {estado === "enviando" ? (<><Loader2 size={19} className="animate-spin" aria-hidden="true" /> Enviando…</>)
               : estado === "ok" ? (<><Check size={19} strokeWidth={3} aria-hidden="true" /> Recibida en la oficina</>)
-              : estado === "encolada" ? (<><CloudOff size={18} aria-hidden="true" /> Guardada · se enviará sola</>)
+              : estado === "offline" ? (<><CloudOff size={18} aria-hidden="true" /> Guardada · reintentar ahora</>)
+              : estado === "servidor" ? (<><ServerCrash size={18} aria-hidden="true" /> Guardada · reintentar ahora</>)
               : estado === "rechazada" ? (<><Send size={18} aria-hidden="true" /> Reintentar</>)
               : (<><Send size={18} aria-hidden="true" /> Enviar a la oficina</>)}
           </button>
 
           <p className="text-center text-[12px] mt-2 leading-snug" role="status">
-            {estado === "encolada" ? (
+            {estado === "offline" ? (
               <span className="text-amber-700">
                 No hay conexión ahora mismo. La ficha está guardada y se enviará sola
                 en cuanto vuelvas a tener red. Puedes cerrar la app.
+              </span>
+            ) : estado === "servidor" ? (
+              <span className="text-amber-700">
+                Tu conexión está bien, pero la oficina no ha podido guardarla
+                ({detalle || "error del servidor"}). La ficha está guardada aquí y se
+                reintentará sola. Si sigue fallando, avisa a la oficina.
               </span>
             ) : estado === "ok" ? (
               <span className="text-green-700">La oficina ya la tiene.</span>

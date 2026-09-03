@@ -24,10 +24,15 @@ export function desencolar(id) {
 
 export const pendientes = () => leerCola().length;
 
-/* Envía una ficha. Distingue tres desenlaces, porque no se tratan igual:
+/* Envía una ficha. Distingue cuatro desenlaces, porque ni se tratan ni se le
+   cuentan igual al agente:
      ok        → guardada
-     rechazada → el servidor dice que la ficha está mal; reintentar no arregla nada
-     red       → no llegó; hay que reintentar más tarde                        */
+     rechazada → la ficha está mal; reintentar no arregla nada
+     offline   → no hay red; es cosa del móvil y se reintenta solo
+     servidor  → la petición llegó pero la oficina no pudo guardarla (base de
+                 datos caída o mal configurada). También se reintenta, pero NO
+                 se le dice que no tiene cobertura: buscaría señal por un fallo
+                 que no es suyo.                                              */
 export async function enviarAlServidor(ficha, pin) {
   try {
     const r = await fetch("/api/fichas", {
@@ -46,19 +51,25 @@ export async function enviarAlServidor(ficha, pin) {
     if (r.status === 400 || r.status === 401) {
       return { ok: false, tipo: "rechazada", error: cuerpo.error || "La oficina rechazó la ficha" };
     }
-    return { ok: false, tipo: "red", error: cuerpo.error || `Error ${r.status}` };
+    return {
+      ok: false,
+      tipo: "servidor",
+      estado: r.status,
+      error: cuerpo.error || `La oficina devolvió un error ${r.status}`,
+    };
   } catch {
-    return { ok: false, tipo: "red", error: "Sin conexión" };
+    return { ok: false, tipo: "offline", error: "Sin conexión" };
   }
 }
 
 /* Procesa la cola entera. Devuelve { enviadas, fallidas, rechazadas }. */
 export async function procesarCola(pin) {
   const cola = leerCola();
-  if (!cola.length || !pin) return { enviadas: 0, fallidas: 0, rechazadas: 0 };
+  if (!cola.length || !pin) return { enviadas: 0, fallidas: 0, rechazadas: 0, motivo: null };
 
   let enviadas = 0;
   let rechazadas = 0;
+  let motivo = null; // "offline" | "servidor": para poder explicar por qué falla
   const quedan = [];
 
   for (const entrada of cola) {
@@ -71,14 +82,15 @@ export async function procesarCola(pin) {
       rechazadas += 1;
       continue; // no tiene sentido reintentar; se avisa y se saca de la cola
     }
+    motivo = res.tipo;
     const intentos = entrada.intentos + 1;
     if (intentos < MAX_REINTENTOS) {
-      quedan.push({ ...entrada, intentos, ultimoError: res.error });
+      quedan.push({ ...entrada, intentos, ultimoError: res.error, ultimoTipo: res.tipo });
     } else {
       rechazadas += 1;
     }
   }
 
   escribirCola(quedan);
-  return { enviadas, fallidas: quedan.length, rechazadas };
+  return { enviadas, fallidas: quedan.length, rechazadas, motivo };
 }

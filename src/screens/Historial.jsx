@@ -121,7 +121,10 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
                   </div>
                   {!esBorrador && estadoEnvio === "pendiente" && (
                     <div className="text-[11.5px] text-amber-700 font-semibold flex items-center gap-1 mt-0.5">
-                      <CloudOff size={12} aria-hidden="true" /> Sin enviar — a la espera de conexión
+                      <CloudOff size={12} aria-hidden="true" />
+                      {f.envio?.tipo === "servidor"
+                        ? "Sin enviar — la oficina no responde"
+                        : "Sin enviar — a la espera de conexión"}
                     </div>
                   )}
                   {!esBorrador && estadoEnvio === "rechazada" && (
