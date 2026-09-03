@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
+import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
@@ -255,12 +255,17 @@ export function AdminApp() {
                         </span>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell whitespace-nowrap">
-                        <div className="text-[13px] text-ios-texto2 dark:text-ios-texto2-osc">
-                          {fmtFecha(f.corregida || f.recibida)}
-                        </div>
-                        {f.corregida && (
-                          <div className="text-[11px] font-bold text-rk-naranja flex items-center gap-1">
-                            <PencilLine size={11} aria-hidden="true" /> Corregida por el agente
+                        {/* Una corrección aparece en su fila de siempre: la
+                            ficha no se duplica nunca. Solo cambia lo que se
+                            dice de ella, para que se distinga de una entrada
+                            nueva sin añadir una segunda línea de fecha. */}
+                        {f.corregida ? (
+                          <div className="text-[13px] font-semibold text-rk-naranja">
+                            Corregida por el agente
+                          </div>
+                        ) : (
+                          <div className="text-[13px] text-ios-texto2 dark:text-ios-texto2-osc">
+                            {fmtFecha(f.recibida)}
                           </div>
                         )}
                       </td>
