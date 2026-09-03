@@ -55,6 +55,18 @@ Y para comprobar que toda la cadena funciona contra la base de datos real
 npm run db:probar
 ```
 
+Para ver el panel con datos realistas sin esperar a que un agente envíe nada:
+
+```bash
+npm run db:prueba          # inserta 3 fichas de ejemplo (piso, chalet y local)
+npm run db:prueba:borrar   # las quita
+```
+
+Pasan por el handler real, así que recorren la misma validación y el mismo SQL
+que una ficha enviada desde el móvil. Van marcadas con `[PRUEBA]` en las notas
+internas, que es por donde las localiza el borrado. Los propietarios son
+inventados.
+
 ### 2. Variables de entorno
 Copiar `.env.example` a `.env` (local) y rellenar las mismas en
 **Vercel → Settings → Environment Variables**:

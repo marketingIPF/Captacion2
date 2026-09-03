@@ -308,7 +308,8 @@ export function mockApi() {
 
           if (body.accion === "resumen") {
             const porEstado = ESTADOS.map((e) => ({ estado: e, n: todas.filter((f) => f.estado === e).length })).filter((x) => x.n);
-            const precios = todas.map((f) => f.precio).filter(Boolean);
+            const ventas = todas.filter((f) => f.operacion === "Venta");
+            const precios = ventas.map((f) => f.precio).filter(Boolean);
             return responder(res, 200, {
               usuario: { email: "julia@inmobiliariapalanca.com", nombre: "Julia (simulado)" },
               porEstado,
@@ -316,7 +317,8 @@ export function mockApi() {
               totales: {
                 total: todas.length,
                 ultimos30: todas.filter((f) => Date.now() - Date.parse(f.recibida_en) < 30 * 86400000).length,
-                precio_medio: precios.length ? (precios.reduce((s, n) => s + n, 0) / precios.length).toFixed(2) : null,
+                ventas: ventas.length,
+                precio_medio_venta: precios.length ? (precios.reduce((s, n) => s + n, 0) / precios.length).toFixed(2) : null,
               },
             });
           }

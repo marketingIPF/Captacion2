@@ -97,10 +97,13 @@ export async function resumen(sql, res, usuario) {
     select agente_id, agente_nombre, count(*)::int as n
     from fichas group by agente_id, agente_nombre order by n desc limit 20
   `;
+  /* El precio medio se calcula SOLO sobre ventas: promediar un chalet de
+     545.000 € con un alquiler de 1.850 €/mes da un número sin sentido. */
   const [totales] = await sql`
     select count(*)::int as total,
            count(*) filter (where recibida_en > now() - interval '30 days')::int as ultimos30,
-           avg(precio)::numeric(12,2) as precio_medio
+           count(*) filter (where operacion = 'Venta')::int as ventas,
+           avg(precio) filter (where operacion = 'Venta')::numeric(12,2) as precio_medio_venta
     from fichas
   `;
   res.status(200).json({ porEstado, porAgente, totales, usuario });

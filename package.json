@@ -17,7 +17,9 @@
     "avatares": "node dev/generar-avatares.mjs",
     "db:esquema": "node --env-file=.env dev/aplicar-esquema.mjs db/schema.sql",
     "db:probar": "node --env-file=.env dev/probar-api.mjs",
-    "dev:login": "MOCK_API=1 vite"
+    "dev:login": "MOCK_API=1 vite",
+    "db:prueba": "node --env-file=.env dev/fichas-de-prueba.mjs",
+    "db:prueba:borrar": "node --env-file=.env dev/fichas-de-prueba.mjs --borrar"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

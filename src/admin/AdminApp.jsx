@@ -133,7 +133,10 @@ export function AdminApp() {
           <Tarjeta valor={resumen?.totales?.total ?? "—"} etiqueta="Captaciones totales" destacada />
           <Tarjeta valor={resumen?.totales?.ultimos30 ?? "—"} etiqueta="Últimos 30 días" />
           <Tarjeta valor={conteos.nueva ?? 0} etiqueta="Sin revisar" />
-          <Tarjeta valor={resumen?.totales?.precio_medio ? fmtPrecio(Number(resumen.totales.precio_medio)) : "—"} etiqueta="Precio medio" />
+          <Tarjeta
+            valor={resumen?.totales?.precio_medio_venta ? fmtPrecio(Number(resumen.totales.precio_medio_venta)) : "—"}
+            etiqueta={`Precio medio de venta${resumen?.totales?.ventas ? ` (${resumen.totales.ventas})` : ""}`}
+          />
         </div>
 
         {/* Filtros */}
