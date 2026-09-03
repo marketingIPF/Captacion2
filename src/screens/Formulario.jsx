@@ -5,6 +5,7 @@ import { camposAplicables, calcularProgreso, revisarFicha, seccionAplica } from 
 import { validarCampo } from "../lib/validacion.js";
 import { Avatar } from "../components/Avatar.jsx";
 import { Campo } from "../components/Campo.jsx";
+import { RefCatastral } from "../components/RefCatastral.jsx";
 import { TipoSelector } from "../components/TipoSelector.jsx";
 import { Propietarios } from "../components/Propietarios.jsx";
 import { PreviewModal } from "./PreviewModal.jsx";
@@ -26,6 +27,23 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
     [setFicha]
   );
   const marcarTocado = useCallback((k) => setTocados((t) => ({ ...t, [k]: true })), []);
+
+  /* Relleno desde el Catastro: sobrescribe lo que hubiera escrito el agente,
+     porque el dato oficial manda. El tipo de inmueble es la excepción: decide
+     qué campos existen y el Catastro no distingue piso de ático ni de chalet,
+     así que solo se propone si aún está vacío. */
+  const rellenarDesdeCatastro = useCallback(
+    (campos, tipoSugerido) => {
+      setFicha((f) => {
+        const data = { ...f.data, ...campos };
+        if (tipoSugerido && !f.data.tipo) data.tipo = tipoSugerido;
+        return { ...f, data };
+      });
+      setTocados((t) => ({ ...t, ...Object.fromEntries(Object.keys(campos).map((k) => [k, true])) }));
+      toast("Datos del Catastro aplicados");
+    },
+    [setFicha, toast]
+  );
 
   const progreso = useMemo(() => calcularProgreso(ficha), [ficha]);
   const errores = useMemo(() => revisarFicha(ficha), [ficha]);
@@ -170,6 +188,17 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
                     {campos.map((def) =>
                       def.kind === "tipo" ? (
                         <TipoSelector key={def.key} value={ficha.data.tipo} onChange={setData} />
+                      ) : def.kind === "catastro" ? (
+                        <RefCatastral
+                          key={def.key}
+                          def={def}
+                          value={ficha.data[def.key]}
+                          error={errorDe(def, ficha.data[def.key])}
+                          onChange={setData}
+                          onRellenar={rellenarDesdeCatastro}
+                          onBlur={marcarTocado}
+                          tipoElegido={ficha.data.tipo}
+                        />
                       ) : (
                         <Campo
                           key={def.key}

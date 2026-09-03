@@ -145,6 +145,7 @@ src/data/secciones.js   ESQUEMA DE LA FICHA — el archivo que se toca para
 src/lib/ficha.js        Aplicabilidad, progreso, validación de la ficha
 src/lib/validacion.js   DNI, teléfono, CP, año, y números en formato es-ES
 src/lib/cola.js         Cola de envío offline con reintentos
+src/lib/catastro.js     Consulta al Catastro y relleno automático de la ficha
 src/lib/resumen.js      Estructura legible de la ficha (texto y panel)
 src/lib/storage.js      Claves, caducidad de la caché, poda del historial
 src/screens/            App de agentes
@@ -157,6 +158,31 @@ dev/detectar-caras.swift Detección de caras con el framework Vision de macOS
 test/                   18 tests
 dev/mock-api.js         Simulador de /api para desarrollo
 ```
+
+### Autocompletado desde el Catastro
+El campo «Referencia catastral» consulta los servicios públicos de la Sede
+Electrónica del Catastro (HTTPS y CORS abierto, sin necesidad de proxy) y
+rellena hasta 11 campos: calle, número, escalera, planta, puerta, código
+postal, población, provincia, superficie construida y año.
+
+Las referencias tienen dos longitudes:
+
+- **20 caracteres** → un inmueble concreto. Rellena directamente.
+- **14 caracteres** → la parcela entera. Muestra la lista de unidades (una
+  parcela de Colón tiene 10) para que el agente elija la suya.
+
+El dato oficial **sobrescribe** lo que hubiera escrito el agente. La única
+excepción es el tipo de inmueble: decide qué campos existen, y el Catastro no
+distingue piso de ático ni de chalet, así que solo se propone cuando el uso es
+inequívoco (Comercial → Local, Almacén-Estacionamiento → Garaje, Suelo →
+Terreno) y el campo está vacío.
+
+Solo se piden datos **no protegidos**: nunca el titular. Los tests usan
+respuestas grabadas en `test/fixtures/`, así que no dependen de la red.
+
+> El dominio del Catastro está en `connect-src` del CSP, igual que el servidor
+> de Neon Auth. Si se añade cualquier servicio externo al que llame el
+> navegador, hay que añadirlo ahí o las llamadas fallan sin aviso visible.
 
 ### Añadir o cambiar un campo
 Todo en `src/data/secciones.js`:

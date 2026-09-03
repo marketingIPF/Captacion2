@@ -38,7 +38,10 @@ export function validarAnio(v) {
 
 export function validarRefCatastral(v) {
   if (!v) return "";
-  if (!/^[A-Z0-9]{20}$/i.test(v.replace(/\s/g, ""))) return "La referencia catastral tiene 20 caracteres";
+  const r = v.replace(/[\s-]/g, "").toUpperCase();
+  if (!/^[A-Z0-9]+$/.test(r)) return "Solo letras y números";
+  /* 14 = la parcela; 20 = un inmueble concreto. */
+  if (r.length !== 14 && r.length !== 20) return "Tiene 14 caracteres (parcela) o 20 (inmueble)";
   return "";
 }
 

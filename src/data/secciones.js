@@ -30,7 +30,7 @@ export const SECCIONES = [
       txt("referencia", "Referencia interna", { ph: "REF-0000" }),
       seg("operacion", "Operación", ["Venta", "Alquiler"], { required: true }),
       { key: "tipo", kind: "tipo", label: "Tipo de inmueble", required: true },
-      txt("refCatastral", "Referencia catastral", { ph: "20 caracteres", validate: "refCatastral" }),
+      { key: "refCatastral", kind: "catastro", label: "Referencia catastral", validate: "refCatastral" },
     ],
   },
   {
