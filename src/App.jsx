@@ -1,775 +1,100 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import {
-  Home, Building2, Store, Trees, Car, User, Users, ClipboardList, FileText,
-  PlusCircle, ChevronRight, ChevronDown, X, Check, Phone, MapPin, Euro,
-  Search, Send, Trash2, Save, CheckCircle2, Clock, MailCheck, Plus, Minus,
-  Building, Ruler, Sparkles, Layers, TreePine, Eye, Loader2, ArrowLeft, ArrowRight,
-  Lock, RefreshCw
-} from "lucide-react";
-import emailjs from "@emailjs/browser";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { PinGate } from "./screens/PinGate.jsx";
+import { AgentPicker } from "./screens/AgentPicker.jsx";
+import { Formulario } from "./screens/Formulario.jsx";
+import { Historial } from "./screens/Historial.jsx";
+import { Perfil } from "./screens/Perfil.jsx";
+import { BottomNav } from "./components/BottomNav.jsx";
+import { useToast } from "./hooks/useToast.jsx";
+import { useAutosave } from "./hooks/useAutosave.js";
+import { fichaVacia } from "./lib/ficha.js";
+import { enviarAlServidor, encolar, desencolar, pendientes, procesarCola } from "./lib/cola.js";
+import { K, load, save, remove, loadCacheAgentes, saveCacheAgentes, podar } from "./lib/storage.js";
 
-/* ================================================================== */
-/*  CONFIG                                                             */
-/* ================================================================== */
-const STORE_DRAFTS = "ipf_fichas_draft";
-const STORE_SENT = "ipf_fichas_sent";
-const STORE_AGENT = "ipf_agente_activo";
-const STORE_AGENTES_CACHE = "ipf_agentes_cache";
-
-/* Configuración de EmailJS — envío directo sin cliente de correo */
-const EMAILJS = {
-  serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
-  templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-  publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
-};
-
-const C = { naranja: "#cf731b", naranjaSoft: "#fbeede", tinta: "#111111", gris: "#6b7280" };
-
-const TIPOS_INMUEBLE = [
-  { key: "Piso", icon: Building2 },
-  { key: "Ático", icon: Building },
-  { key: "Casa / Chalet", icon: Home },
-  { key: "Local", icon: Store },
-  { key: "Terreno", icon: Trees },
-  { key: "Garaje", icon: Car },
-];
-
-/* ----------------------- helpers de campos ----------------------- */
-const seg = (label, options) => ({ kind: "seg", label, options });
-const txt = (label, ph, type) => ({ kind: "txt", label, ph, type });
-const chips = (label, options) => ({ kind: "chips", label, options });
-
-/* Esquema completo de la ficha (7 bloques) */
-const SECCIONES = [
-  {
-    id: "ident", n: 1, title: "Agente e identificación", icon: User,
-    fields: {
-      prospecto: txt("Prospecto", "Nombre del prospecto"),
-      referencia: txt("Referencia", "REF-0000"),
-      operacion: seg("Operación", ["Venta", "Alquiler"]),
-      tipo: { kind: "tipo", label: "Tipo de inmueble" },
-    },
-  },
-  {
-    id: "ubic", n: 2, title: "Ubicación y datos legales", icon: MapPin,
-    fields: {
-      direccion: txt("Dirección (calle)", "Calle / Avenida"),
-      numero: txt("Número", "Nº"),
-      planta: txt("Planta", "Planta"),
-      puerta: txt("Puerta", "Puerta"),
-      poblacion: txt("Población", "Valencia"),
-      cp: txt("Código postal", "46000", "numeric"),
-      provincia: txt("Provincia", "Valencia"),
-      suelo: seg("Clasificación del suelo", ["Urbano", "Rústico"]),
-      cee: seg("Certificado energético", ["Hecho", "Pendiente"]),
-      autorizacion: seg("Autorización de venta firmada", ["Sí", "No"]),
-      docs: chips("Documentación aportada", ["DNI", "IBI", "CEE", "Escritura", "Nota simple"]),
-    },
-  },
-  {
-    id: "econ", n: 3, title: "Datos económicos", icon: Euro,
-    fields: {
-      precio: txt("Precio solicitado", "€", "numeric"),
-      precioMin: txt("Precio mínimo aceptable", "€", "numeric"),
-      comunidad: txt("Gastos de comunidad", "€/mes", "numeric"),
-      ibi: txt("IBI", "€/año", "numeric"),
-      derrama: seg("Derrama aprobada", ["Sí", "No"]),
-      derramaImporte: txt("Importe derrama", "€", "numeric"),
-      vpo: seg("VPO", ["Sí", "No"]),
-      vpoExp: txt("Nº de expediente VPO", "Expediente"),
-    },
-  },
-  {
-    id: "dist", n: 4, title: "Distribución y superficies", icon: Ruler,
-    fields: {
-      mConstruidos: txt("M² construidos", "m²", "numeric"),
-      mUtiles: txt("M² útiles", "m²", "numeric"),
-      mParcela: txt("M² parcela", "m²", "numeric"),
-      mTerraza: txt("M² terraza", "m²", "numeric"),
-      anio: txt("Año de construcción", "Año", "numeric"),
-      alturas: txt("Alturas del edificio", "Plantas", "numeric"),
-      dormitorios: txt("Dormitorios", "Nº", "numeric"),
-      banos: txt("Baños", "Nº", "numeric"),
-      aseos: txt("Aseos", "Nº", "numeric"),
-      salon: txt("Salón (m²)", "m²", "numeric"),
-      cocinaM: txt("Cocina (m²)", "m²", "numeric"),
-      equipamiento: chips("Equipamiento adicional", ["Armarios empotrados", "Garaje", "Trastero", "Terraza", "Balcón", "Piscina", "Jardín"]),
-    },
-  },
-  {
-    id: "cal", n: 5, title: "Calidades y equipamiento", icon: Sparkles,
-    fields: {
-      ventanaMat: seg("Ventanas — material", ["Aluminio", "PVC", "Madera", "Climalit"]),
-      ventanaApertura: seg("Tipo de apertura", ["Correderas", "Abatibles", "Oscilobatientes"]),
-      puertas: seg("Puertas interiores", ["Macizas", "Huecas", "Lacadas", "Roble/Haya"]),
-      suelos: seg("Suelos", ["Tarima", "Gres", "Terrazo", "Mármol", "Porcelánico"]),
-      cocinaTipo: seg("Cocina", ["Independiente", "Abierta", "Americana"]),
-      fuegos: seg("Fuegos", ["Vitrocerámica", "Inducción", "Gas"]),
-      acs: seg("Agua caliente", ["Termo eléctrico", "Gas natural", "Butano", "Solar"]),
-      clima: seg("Climatización", ["A/A Splits", "Conductos", "No tiene"]),
-      calefaccion: seg("Calefacción", ["Gas", "Eléctrica", "Suelo radiante", "No tiene"]),
-      paredes: seg("Paredes", ["Lisas", "Gotelé", "Papel pintado"]),
-    },
-  },
-  {
-    id: "edif", n: 6, title: "Edificio, entorno y estado", icon: Layers,
-    fields: {
-      ascensor: seg("Ascensor", ["Sí", "No"]),
-      cotaCero: seg("A cota cero", ["Sí", "No"]),
-      zonasComunes: chips("Zonas comunes", ["Piscina", "Jardines", "Club social", "Pádel/Tenis", "Zona infantil"]),
-      conserjeria: seg("Conserjería / vigilancia", ["Sí", "No"]),
-      fachada: seg("Fachada", ["Ladrillo caravista", "Monocapa", "Pintada", "Piedra"]),
-      estado: seg("Estado de conservación", ["Para entrar", "Buen estado", "A reformar", "A estrenar"]),
-      orientacion: seg("Orientación", ["Norte", "Sur", "Este", "Oeste"]),
-      vistas: chips("Vistas", ["Al mar", "A la montaña", "Despejadas"]),
-      servicios: chips("Servicios a 5 min", ["Metro/Bus", "Supermercado", "Colegios", "Centro médico", "Parques"]),
-    },
-  },
-  {
-    id: "obs", n: 7, title: "Observaciones del agente", icon: FileText,
-    fields: {
-      notasInternas: { kind: "area", label: "Notas internas (no publicables)", ph: "Anotaciones privadas para la oficina…" },
-      descripcionPublica: { kind: "area", label: "Descripción pública (para portales)", ph: "Texto comercial para publicar…" },
-    },
-  },
-];
-
-/* ================================================================== */
-/*  PERSISTENCIA                                                       */
-/* ================================================================== */
-const load = (k, def) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : def; } catch { return def; } };
-const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-
-const fmtFecha = (iso) => new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-const fmtPrecio = (n) => n ? new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n) : "—";
-
-const emptyFicha = (agente) => ({
-  id: "F" + Date.now(),
-  agenteId: agente?.id || "",
-  agenteName: agente?.name || "",
-  fecha: new Date().toISOString(),
-  propietarios: [{ nombre: "", telefono: "", dni: "" }],
-  data: {},
-});
-
-/* ================================================================== */
-/*  CONSTRUCCIÓN DEL CORREO                                            */
-/* ================================================================== */
-function construirCorreo(ficha) {
-  const d = ficha.data;
-  const L = [];
-  L.push("FICHA DE CAPTACIÓN · RK PALANCA FONTESTAD");
-  L.push("=========================================");
-  L.push(`Agente captador: ${ficha.agenteName}`);
-  L.push(`Fecha: ${fmtFecha(ficha.fecha)}`);
-  L.push("");
-  // Propietarios
-  L.push("— PROPIETARIOS —");
-  ficha.propietarios.forEach((p, i) => {
-    if (p.nombre || p.telefono) L.push(`  ${i + 1}. ${p.nombre || "—"} · Tel: ${p.telefono || "—"}${p.dni ? " · DNI: " + p.dni : ""}`);
-  });
-  L.push("");
-  // Secciones
-  SECCIONES.forEach((sec) => {
-    const lines = [];
-    Object.entries(sec.fields).forEach(([key, f]) => {
-      if (f.kind === "tipo") { if (d.tipo) lines.push(`  ${f.label}: ${d.tipo}`); return; }
-      const v = d[key];
-      if (v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) return;
-      lines.push(`  ${f.label}: ${Array.isArray(v) ? v.join(", ") : v}`);
-    });
-    if (lines.length) { L.push(`— ${sec.title.toUpperCase()} —`); L.push(...lines); L.push(""); }
-  });
-  const asunto = `Ficha Captación · ${d.tipo || "Inmueble"} · ${d.direccion || "s/dirección"}${d.numero ? " " + d.numero : ""} · ${ficha.agenteName}`;
-  return { asunto, cuerpo: L.join("\n") };
-}
-const esEscritorio = () => {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent || "";
-  const movil = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(ua);
-  return !movil;
-};
-
-/* Respaldo: abre el cliente de correo y copia el texto (si es PC). */
-async function respaldoMailto(ficha, destinatario) {
-  const { asunto, cuerpo } = construirCorreo(ficha);
-  if (esEscritorio()) {
-    try { await navigator.clipboard.writeText(`Para: ${destinatario}\nAsunto: ${asunto}\n\n${cuerpo}`); } catch {}
-  }
-  window.location.href = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
-}
-
-/* Envío directo con EmailJS. Devuelve { ok, modo }:
-   - ok:true, modo:"directo"  → enviado sin abrir nada
-   - ok:false, modo:"respaldo" → falló EmailJS, se usó mailto + copia */
-async function enviarFicha(ficha, destinatario) {
-  const { asunto, cuerpo } = construirCorreo(ficha);
-  try {
-    await emailjs.send(
-      EMAILJS.serviceId,
-      EMAILJS.templateId,
-      { asunto, cuerpo, to_email: destinatario, agente: ficha.agenteName },
-      { publicKey: EMAILJS.publicKey }
-    );
-    return { ok: true, modo: "directo" };
-  } catch (err) {
-    console.error("EmailJS falló, usando respaldo mailto:", err);
-    await respaldoMailto(ficha, destinatario);
-    return { ok: false, modo: "respaldo" };
-  }
-}
-
-/* ================================================================== */
-/*  COMPONENTES DE CAMPO                                               */
-/* ================================================================== */
-const inputBase = "w-full bg-white rounded-xl px-3.5 py-3 text-[15px] outline-none border border-gray-200 focus:border-[#cf731b] focus:ring-2 focus:ring-[#cf731b]/15 transition";
-const lblBase = "text-[12px] font-semibold text-gray-500 mb-1.5 block";
-
-const Field = React.memo(function Field({ name, def, value, onChange }) {
-  if (def.kind === "txt")
-    return (
-      <div>
-        <label className={lblBase}>{def.label}</label>
-        <input value={value ?? ""} placeholder={def.ph}
-          inputMode={def.type === "numeric" ? "numeric" : "text"}
-          onChange={(e) => onChange(name, def.type === "numeric" ? e.target.value.replace(/[^\d]/g, "") : e.target.value)}
-          className={inputBase} />
-      </div>
-    );
-  if (def.kind === "area")
-    return (
-      <div>
-        <label className={lblBase}>{def.label}</label>
-        <textarea value={value ?? ""} placeholder={def.ph} rows={3}
-          onChange={(e) => onChange(name, e.target.value)} className={inputBase + " resize-none"} />
-      </div>
-    );
-  if (def.kind === "seg")
-    return (
-      <div>
-        <label className={lblBase}>{def.label}</label>
-        <div className="flex flex-wrap gap-2">
-          {def.options.map((o) => {
-            const act = value === o;
-            return (
-              <button key={o} onClick={() => onChange(name, act ? "" : o)}
-                className={`px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition active:scale-95 ${act ? "text-white border-transparent shadow-sm" : "bg-white text-gray-600 border-gray-200"}`}
-                style={act ? { background: C.naranja } : {}}>{o}</button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  if (def.kind === "chips")
-    return (
-      <div>
-        <label className={lblBase}>{def.label}</label>
-        <div className="flex flex-wrap gap-2">
-          {def.options.map((o) => {
-            const arr = value || [];
-            const act = arr.includes(o);
-            return (
-              <button key={o} onClick={() => onChange(name, act ? arr.filter((x) => x !== o) : [...arr, o])}
-                className={`px-3 py-1.5 rounded-full text-[13px] font-medium border transition active:scale-95 flex items-center gap-1 ${act ? "border-transparent" : "bg-white text-gray-600 border-gray-200"}`}
-                style={act ? { background: C.naranjaSoft, color: C.naranja, borderColor: C.naranja } : {}}>
-                {act && <Check size={13} strokeWidth={3} />}{o}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  return null;
-});
-
-const TipoSelector = React.memo(function TipoSelector({ value, onChange }) {
-  return (
-    <div>
-      <label className={lblBase}>Tipo de inmueble</label>
-      <div className="grid grid-cols-3 gap-2">
-        {TIPOS_INMUEBLE.map((t) => {
-          const Icon = t.icon; const act = value === t.key;
-          return (
-            <button key={t.key} onClick={() => onChange("tipo", t.key)}
-              className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition active:scale-95 ${act ? "text-white border-transparent shadow-md" : "bg-white text-gray-500 border-gray-200"}`}
-              style={act ? { background: C.tinta } : {}}>
-              <Icon size={20} strokeWidth={2} style={act ? { color: C.naranja } : {}} />
-              <span className="text-[11px] font-semibold">{t.key}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
-
-/* ----------------------- Propietarios (array) -------------------- */
-const Propietarios = React.memo(function Propietarios({ list, onChange }) {
-  const upd = (i, k, v) => onChange(list.map((p, idx) => idx === i ? { ...p, [k]: v } : p));
-  return (
-    <div className="space-y-3">
-      {list.map((p, i) => (
-        <div key={i} className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-bold uppercase tracking-wide" style={{ color: C.naranja }}>Propietario {i + 1}</span>
-            {list.length > 1 && (
-              <button onClick={() => onChange(list.filter((_, idx) => idx !== i))} className="text-gray-400 active:scale-90 transition"><Minus size={18} /></button>
-            )}
-          </div>
-          <input value={p.nombre} onChange={(e) => upd(i, "nombre", e.target.value)} placeholder="Nombre y apellidos" className={inputBase} />
-          <div className="grid grid-cols-2 gap-2">
-            <input value={p.telefono} onChange={(e) => upd(i, "telefono", e.target.value)} inputMode="tel" placeholder="Teléfono" className={inputBase} />
-            <input value={p.dni} onChange={(e) => upd(i, "dni", e.target.value)} placeholder="DNI" className={inputBase} />
-          </div>
-        </div>
-      ))}
-      <button onClick={() => onChange([...list, { nombre: "", telefono: "", dni: "" }])}
-        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-gray-300 text-gray-500 font-semibold text-[14px] active:scale-95 transition">
-        <Plus size={16} /> Añadir propietario
-      </button>
-    </div>
-  );
-});
-
-/* ================================================================== */
-/*  PANTALLA: Acceso con PIN                                           */
-/* ================================================================== */
-function PinGate({ onUnlock }) {
-  const [pin, setPin] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const submit = async () => {
-    if (!pin.trim() || loading) return;
-    setLoading(true);
-    setError("");
-    try {
-      const r = await fetch("/api/agentes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pin.trim() }),
-      });
-      if (!r.ok) {
-        setError(r.status === 401 ? "PIN incorrecto" : "Error de conexión, inténtalo de nuevo");
-        setLoading(false);
-        return;
-      }
-      onUnlock(await r.json());
-    } catch {
-      setError("Error de conexión, inténtalo de nuevo");
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-full flex flex-col items-center justify-center bg-[#F9FAFB] px-8">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: C.tinta }}>
-        <Lock size={26} style={{ color: C.naranja }} />
-      </div>
-      <div className="text-[12px] font-bold tracking-[0.2em] uppercase" style={{ color: C.naranja }}>RK Palanca Fontestad</div>
-      <h1 className="text-[24px] font-extrabold leading-tight mt-2 text-gray-900 text-center">Acceso privado</h1>
-      <p className="text-gray-500 mt-1 text-[15px] text-center">Introduce el PIN del equipo para continuar</p>
-      <input value={pin} onChange={(e) => setPin(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()}
-        type="password" inputMode="numeric" placeholder="PIN" autoFocus
-        className="w-full mt-6 bg-white text-gray-900 placeholder-gray-400 rounded-2xl px-4 py-3.5 text-center text-[18px] tracking-widest outline-none border border-gray-200 focus:border-[#cf731b] focus:ring-2 focus:ring-[#cf731b]/15 transition" />
-      {error && <div className="text-center text-[13px] font-semibold mt-2" style={{ color: "#dc2626" }}>{error}</div>}
-      <button onClick={submit} disabled={loading || !pin.trim()}
-        className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-[16px] text-white shadow-lg active:scale-95 transition disabled:opacity-50"
-        style={{ background: C.naranja }}>
-        {loading ? <><Loader2 size={18} className="animate-spin" /> Comprobando…</> : "Entrar"}
-      </button>
-    </div>
-  );
-}
-
-/* ================================================================== */
-/*  PANTALLA: Selector de Agente                                       */
-/* ================================================================== */
-function AgentPicker({ agentes, onSelect, ultimo }) {
-  const [q, setQ] = useState("");
-  const list = useMemo(() => agentes.filter((a) => a.name.toLowerCase().includes(q.toLowerCase()) || a.role.toLowerCase().includes(q.toLowerCase())), [q, agentes]);
-  const ultimoValido = useMemo(() => ultimo && agentes.find((a) => a.id === ultimo.id), [ultimo, agentes]);
-  return (
-    <div className="min-h-full flex flex-col bg-[#F9FAFB]">
-      <div className="px-6 pt-16 pb-4">
-        <div className="text-[12px] font-bold tracking-[0.2em] uppercase" style={{ color: C.naranja }}>RK Palanca Fontestad</div>
-        <h1 className="text-[28px] font-extrabold leading-tight mt-2 text-gray-900">Ficha de Captación</h1>
-        <p className="text-gray-500 mt-1 text-[15px]">Selecciona tu nombre para comenzar</p>
-        <div className="relative mt-5">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar agente…"
-            className="w-full bg-white text-gray-900 placeholder-gray-400 rounded-2xl pl-11 pr-4 py-3.5 text-[16px] outline-none border border-gray-200 focus:border-[#cf731b] focus:ring-2 focus:ring-[#cf731b]/15 transition" />
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-5 pb-8">
-        {ultimoValido && !q && (
-          <button onClick={() => onSelect(ultimoValido)}
-            className="w-full flex items-center gap-3 bg-white rounded-2xl border-2 px-4 py-3.5 mb-3 active:scale-[0.99] transition text-left"
-            style={{ borderColor: C.naranja }}>
-            <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-[14px] shrink-0" style={{ background: C.tinta }}>
-              <span style={{ color: C.naranja }}>{ultimoValido.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: C.naranja }}>Continuar como</div>
-              <div className="font-semibold text-gray-900 truncate text-[15px]">{ultimoValido.name}</div>
-            </div>
-            <ChevronRight size={18} className="shrink-0" style={{ color: C.naranja }} />
-          </button>
-        )}
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
-          {list.map((a) => (
-            <button key={a.id} onClick={() => onSelect(a)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 transition text-left">
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 truncate text-[15px]">{a.name}</div>
-                <div className="text-[13px] text-gray-400 truncate">{a.role}</div>
-              </div>
-              <ChevronRight size={18} className="text-gray-300 shrink-0" />
-            </button>
-          ))}
-          {list.length === 0 && <div className="text-center text-gray-400 py-12 text-[14px]">Sin resultados</div>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ================================================================== */
-/*  PANTALLA: Formulario (acordeón de secciones)                       */
-/* ================================================================== */
-function Formulario({ agente, agentes, destinatario, ficha, setFicha, onSaveDraft, onSend, onChangeAgent }) {
-  const [open, setOpen] = useState("ident");
-  const [preview, setPreview] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [aviso, setAviso] = useState("");
-
-  const setData = useCallback((k, v) => setFicha((f) => ({ ...f, data: { ...f.data, [k]: v } })), [setFicha]);
-  const setProps = useCallback((list) => setFicha((f) => ({ ...f, propietarios: list })), [setFicha]);
-
-  const progreso = useMemo(() => {
-    const total = SECCIONES.reduce((n, s) => n + Object.keys(s.fields).length, 0);
-    const done = SECCIONES.reduce((n, s) => n + Object.entries(s.fields).filter(([k, f]) => {
-      if (f.kind === "tipo") return !!ficha.data.tipo;
-      const v = ficha.data[k]; return v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0);
-    }).length, 0);
-    return Math.round((done / total) * 100);
-  }, [ficha.data]);
-
-  const faltan = useMemo(() => {
-    const arr = [];
-    if (!ficha.data.tipo) arr.push({ campo: "el tipo de inmueble", sec: "ident" });
-    if (!ficha.data.direccion || !ficha.data.direccion.trim()) arr.push({ campo: "la dirección", sec: "ubic" });
-    if (!ficha.propietarios.some((p) => p.nombre && p.nombre.trim())) arr.push({ campo: "el nombre de un propietario", sec: "ident" });
-    return arr;
-  }, [ficha.data.tipo, ficha.data.direccion, ficha.propietarios]);
-  const puedeEnviar = faltan.length === 0;
-
-  const handleSend = () => {
-    if (sending) return Promise.resolve(null);
-    if (!puedeEnviar) {
-      setOpen(faltan[0].sec);
-      setAviso("Falta " + faltan.map((f) => f.campo).join(", "));
-      setTimeout(() => setAviso(""), 3500);
-      if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
-      return Promise.resolve(null);
-    }
-    setSending(true);
-    return new Promise((resolve) => {
-      setTimeout(async () => {
-        const res = await enviarFicha(ficha, destinatario);
-        onSend(ficha);
-        setSending(false);
-        resolve(res);
-      }, 300);
-    });
-  };
-
-  return (
-    <div className="min-h-full bg-[#F9FAFB] pb-24">
-      {/* Header con progreso */}
-      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-xl border-b border-gray-100 px-5 pt-12 pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[11px] font-bold tracking-widest uppercase" style={{ color: C.naranja }}>Nueva ficha</div>
-            <div className="text-[15px] font-semibold text-gray-900">{agente.name}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-right">
-              <div className="text-[20px] font-extrabold" style={{ color: C.tinta }}>{progreso}%</div>
-              <div className="text-[10px] text-gray-400 -mt-1">completado</div>
-            </div>
-          </div>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progreso}%`, background: C.naranja }} />
-        </div>
-      </div>
-
-      <div className="px-4 mt-4 space-y-3">
-        {SECCIONES.map((sec) => {
-          const Icon = sec.icon; const isOpen = open === sec.id;
-          return (
-            <div key={sec.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <button onClick={() => setOpen(isOpen ? "" : sec.id)} className="w-full flex items-center gap-3 p-4 active:bg-gray-50 transition-colors">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={{ background: isOpen ? C.tinta : C.naranjaSoft }}>
-                  <Icon size={18} style={{ color: C.naranja }} />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="text-[10px] font-bold text-gray-400">SECCIÓN {sec.n}</div>
-                  <div className="font-semibold text-gray-900 text-[15px]">{sec.title}</div>
-                </div>
-                <ChevronDown size={20} className="text-gray-400 transition-transform duration-300" style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
-              </button>
-              <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
-                <div className="overflow-hidden">
-                  <div className={`px-4 pb-5 pt-1 space-y-4 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0"}`}>
-                    {sec.id === "ident" && (
-                      <div>
-                        <label className="text-[12px] font-semibold text-gray-500 mb-1.5 block">Agente captador</label>
-                        <div className="relative">
-                          <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.naranja }} />
-                          <select value={agente.id} onChange={(e) => onChangeAgent(e.target.value)}
-                            className="w-full appearance-none bg-white rounded-xl pl-10 pr-9 py-3 text-[15px] font-medium text-gray-900 outline-none border border-gray-200 focus:border-[#cf731b] focus:ring-2 focus:ring-[#cf731b]/15 transition">
-                            {agentes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                          </select>
-                          <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        </div>
-                      </div>
-                    )}
-                    {Object.entries(sec.fields).map(([key, def]) =>
-                      def.kind === "tipo"
-                        ? <TipoSelector key={key} value={ficha.data.tipo} onChange={setData} />
-                        : <Field key={key} name={key} def={def} value={ficha.data[key]} onChange={setData} />
-                    )}
-                    {sec.id === "ident" && (
-                      <div>
-                        <div className="text-[12px] font-semibold text-gray-500 mb-2 mt-1">Propietarios</div>
-                        <Propietarios list={ficha.propietarios} onChange={setProps} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Acciones */}
-      <div className="px-4 mt-5 space-y-2.5">
-        <button onClick={() => { if (puedeEnviar) { setPreview(true); } else { handleSend(); } }} disabled={sending}
-          className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-[17px] text-white shadow-lg active:scale-95 transition"
-          style={{ background: C.naranja, boxShadow: "0 8px 24px rgba(207,115,27,.35)" }}>
-          {sending ? <><Loader2 size={20} className="animate-spin" /> Preparando…</> : <><Send size={19} /> Enviar correo</>}
-        </button>
-        {aviso
-          ? <div className="text-center text-[12px] font-semibold" style={{ color: "#dc2626" }}>{aviso}</div>
-          : !puedeEnviar && <div className="text-center text-[12px] text-gray-400">Completa tipo, dirección y un propietario para enviar</div>}
-        <button onClick={onSaveDraft}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white border border-gray-200 font-semibold text-gray-700 active:scale-95 transition">
-          <Save size={18} /> Guardar borrador
-        </button>
-      </div>
-
-      {preview && <PreviewModal ficha={ficha} destinatario={destinatario} onClose={() => setPreview(false)} onSend={handleSend} />}
-      <style>{`@keyframes fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}`}</style>
-    </div>
-  );
-}
-
-/* ----------------------- Modal de previsualización --------------- */
-function PreviewModal({ ficha, destinatario, onClose, onSend }) {
-  const { asunto, cuerpo } = construirCorreo(ficha);
-  const [estado, setEstado] = useState("idle"); // idle | enviando | ok | respaldo
-
-  const handleClick = async () => {
-    if (estado === "enviando") return;
-    setEstado("enviando");
-    const res = await onSend();
-    if (!res) { setEstado("idle"); return; }
-    if (res.ok) {
-      setEstado("ok");
-      setTimeout(() => onClose(), 1800);
-    } else {
-      setEstado("respaldo");
-    }
-  };
-
-  const btnBg = estado === "ok" ? "#16a34a" : estado === "respaldo" ? "#d97706" : C.naranja;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end" onClick={estado === "enviando" ? undefined : onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-      <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-md mx-auto bg-white rounded-t-[28px] max-h-[85vh] flex flex-col animate-[slideup_.3s_cubic-bezier(.16,1,.3,1)]">
-        <div className="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mt-3" />
-        <div className="flex items-center justify-between px-6 pt-3 pb-2">
-          <h3 className="text-[18px] font-bold text-gray-900">Enviar a Julia</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"><X size={18} /></button>
-        </div>
-        <div className="px-6 overflow-y-auto pb-4 flex-1">
-          <div className="text-[12px] text-gray-400 font-semibold">PARA</div>
-          <div className="text-[14px] text-gray-900 mb-3">{destinatario}</div>
-          <div className="text-[12px] text-gray-400 font-semibold">ASUNTO</div>
-          <div className="text-[14px] text-gray-900 mb-3 font-medium">{asunto}</div>
-          <div className="text-[12px] text-gray-400 font-semibold">CUERPO</div>
-          <pre className="text-[12px] text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 rounded-xl p-3 mt-1 leading-relaxed">{cuerpo}</pre>
-        </div>
-        <div className="p-4 border-t border-gray-100">
-          <button onClick={handleClick} disabled={estado === "enviando" || estado === "ok"}
-            className="w-full py-3.5 rounded-2xl text-white font-bold flex items-center justify-center gap-2 active:scale-95 transition" style={{ background: btnBg }}>
-            {estado === "enviando" ? <><Loader2 size={19} className="animate-spin" /> Enviando…</>
-              : estado === "ok" ? <><Check size={19} strokeWidth={3} /> ¡Enviado a Julia!</>
-              : estado === "respaldo" ? <><MailCheck size={18} /> Abierto en tu correo</>
-              : <><Send size={18} /> Enviar ahora</>}
-          </button>
-          {estado === "respaldo" && (
-            <p className="text-center text-[12px] mt-2" style={{ color: "#d97706" }}>
-              No se pudo enviar automáticamente. Abrimos tu correo{esEscritorio() ? " y copiamos el texto al portapapeles" : ""} como respaldo.
-            </p>
-          )}
-          {estado === "idle" && (
-            <p className="text-center text-[12px] text-gray-400 mt-2">Se enviará directamente a Julia, sin abrir ningún programa.</p>
-          )}
-        </div>
-      </div>
-      <style>{`@keyframes slideup{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-    </div>
-  );
-}
-
-/* ================================================================== */
-/*  PANTALLA: Historial                                                */
-/* ================================================================== */
-function Historial({ drafts, sent, onOpenDraft, onResend, onDelete }) {
-  const [tab, setTab] = useState("sent");
-  const list = tab === "sent" ? sent : drafts;
-  return (
-    <div className="min-h-full bg-[#F9FAFB] pb-28">
-      <div className="px-6 pt-14 pb-2">
-        <h1 className="text-[30px] font-extrabold text-gray-900">Historial</h1>
-        <p className="text-gray-500 text-[15px]">Fichas guardadas en este dispositivo</p>
-      </div>
-      <div className="px-5 mt-3">
-        <div className="flex gap-2 bg-gray-100 p-1 rounded-2xl">
-          {[["sent", `Enviadas ${sent.length}`], ["drafts", `Borradores ${drafts.length}`]].map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={`flex-1 py-2 rounded-xl text-[14px] font-semibold transition ${tab === k ? "bg-white shadow-sm" : "text-gray-500"}`}
-              style={tab === k ? { color: C.naranja } : {}}>{l}</button>
-          ))}
-        </div>
-      </div>
-      <div className="px-5 mt-4 space-y-2.5">
-        {list.length === 0 && <div className="text-center text-gray-400 py-16">No hay fichas en esta categoría</div>}
-        {list.slice().reverse().map((f) => {
-          const tipo = TIPOS_INMUEBLE.find((t) => t.key === f.data.tipo);
-          const Icon = tipo?.icon || Home;
-          return (
-            <div key={f.id} className="w-full flex items-center gap-3 bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100">
-              <button onClick={() => tab === "drafts" ? onOpenDraft(f) : onResend(f)} className="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70 transition">
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.naranjaSoft }}>
-                  <Icon size={20} style={{ color: C.naranja }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-900 truncate">{f.data.direccion || "Sin dirección"} {f.data.numero}</div>
-                  <div className="text-[13px] text-gray-500 truncate">{f.agenteName} · {fmtFecha(f.fecha)}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="font-bold text-gray-900 text-[14px]">{fmtPrecio(Number(f.data.precio))}</div>
-                  <div className="text-[11px]" style={{ color: C.naranja }}>{f.data.tipo || "—"}</div>
-                </div>
-              </button>
-              <button onClick={() => onDelete(tab, f.id)} className="text-gray-300 active:scale-90 transition pl-1"><Trash2 size={17} /></button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ================================================================== */
-/*  PANTALLA: Perfil                                                   */
-/* ================================================================== */
-function Perfil({ agente, sent, onChange, onRefreshAgentes }) {
-  const mias = sent.filter((f) => f.agenteId === agente.id);
-  return (
-    <div className="min-h-full bg-[#F9FAFB] pb-28">
-      <div className="px-6 pt-14"><h1 className="text-[30px] font-extrabold text-gray-900">Perfil</h1></div>
-      <div className="px-5 mt-4">
-        <div className="rounded-3xl p-6 flex flex-col items-center text-center text-white" style={{ background: C.tinta }}>
-          <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center font-extrabold text-2xl" style={{ color: C.naranja }}>
-            {agente.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
-          </div>
-          <div className="text-[20px] font-bold mt-3">{agente.name}</div>
-          <div className="text-white/60 text-[14px]">{agente.role}</div>
-          <div className="text-[13px] mt-1" style={{ color: C.naranja }}>{agente.email}</div>
-        </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center mt-4">
-          <div className="text-[32px] font-extrabold" style={{ color: C.naranja }}>{mias.length}</div>
-          <div className="text-[13px] text-gray-500">Fichas enviadas por ti</div>
-        </div>
-        <button onClick={onChange} className="w-full mt-4 py-4 rounded-2xl bg-white border border-gray-100 shadow-sm font-semibold text-red-500 active:scale-95 transition">
-          Cambiar de agente
-        </button>
-        <button onClick={onRefreshAgentes} className="w-full mt-2.5 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border border-gray-100 shadow-sm font-semibold text-gray-600 active:scale-95 transition">
-          <RefreshCw size={16} /> Actualizar lista de agentes
-        </button>
-        <p className="text-center text-[11px] text-gray-400 mt-4 px-6">Las fichas se guardan en este dispositivo. Se conservan hasta que las elimines o se borre la caché del navegador.</p>
-      </div>
-    </div>
-  );
-}
-
-/* ================================================================== */
-/*  NAV INFERIOR                                                       */
-/* ================================================================== */
-function BottomNav({ tab, setTab }) {
-  const items = [
-    { k: "ficha", l: "Ficha", icon: ClipboardList },
-    { k: "historial", l: "Historial", icon: FileText },
-    { k: "perfil", l: "Perfil", icon: User },
-  ];
-  return (
-    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl border-t border-gray-100 flex justify-around pt-2 pb-6 px-4 z-40">
-      {items.map((it) => {
-        const Icon = it.icon; const act = tab === it.k;
-        return (
-          <button key={it.k} onClick={() => setTab(it.k)} className="flex flex-col items-center gap-0.5 flex-1 active:scale-90 transition" style={{ color: act ? C.naranja : "#9CA3AF" }}>
-            <Icon size={24} strokeWidth={act ? 2.5 : 2} />
-            <span className="text-[11px] font-semibold">{it.l}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ================================================================== */
-/*  APP                                                                */
-/* ================================================================== */
 export default function App() {
-  const [agentesData, setAgentesData] = useState(() => load(STORE_AGENTES_CACHE, null));
-  const [autoChecking, setAutoChecking] = useState(() => !!new URLSearchParams(window.location.search).get("pin"));
+  const [agentesData, setAgentesData] = useState(loadCacheAgentes);
+  const [pin, setPin] = useState(() => load(K.PIN, ""));
+  const [autoChecking, setAutoChecking] = useState(
+    () => !!new URLSearchParams(window.location.search).get("pin") && !loadCacheAgentes()
+  );
+  const [avisoPin, setAvisoPin] = useState("");
   const [agente, setAgente] = useState(null);
-  const ultimoAgente = useMemo(() => load(STORE_AGENT, null), []);
-  const [drafts, setDrafts] = useState(() => load(STORE_DRAFTS, []));
-  const [sent, setSent] = useState(() => load(STORE_SENT, []));
+  const [drafts, setDrafts] = useState(() => load(K.DRAFTS, []));
+  const [sent, setSent] = useState(() => load(K.SENT, []));
+  const [enCola, setEnCola] = useState(pendientes);
   const [tab, setTab] = useState("ficha");
-  const [ficha, setFicha] = useState(() => emptyFicha(null));
+  const [ficha, setFicha] = useState(() => load(K.BORRADOR_ACTIVO, null) || fichaVacia(null));
+  const toast = useToast();
+  const procesando = useRef(false);
 
-  useEffect(() => save(STORE_DRAFTS, drafts), [drafts]);
-  useEffect(() => save(STORE_SENT, sent), [sent]);
-  useEffect(() => { try { emailjs.init({ publicKey: EMAILJS.publicKey }); } catch {} }, []);
+  const ultimoAgente = useMemo(() => load(K.AGENT, null), []);
 
-  const unlock = (data) => { save(STORE_AGENTES_CACHE, data); setAgentesData(data); };
-  const refreshAgentes = () => { try { localStorage.removeItem(STORE_AGENTES_CACHE); } catch {} setAgentesData(null); };
+  useEffect(() => { save(K.DRAFTS, drafts); }, [drafts]);
+  useEffect(() => { save(K.SENT, sent); }, [sent]);
 
-  /* Si llegan por un link con ?pin=... (el que se comparte con el equipo), se valida
-     solo, sin mostrar ninguna pantalla — así el agente no escribe nada. */
+  /* El seguro contra perder una ficha a medio rellenar. */
+  useAutosave(K.BORRADOR_ACTIVO, ficha, { activo: !!agente });
+
+  const unlock = useCallback((data, pinUsado) => {
+    saveCacheAgentes(data);
+    setAgentesData(data);
+    if (pinUsado) {
+      save(K.PIN, pinUsado);
+      setPin(pinUsado);
+    }
+  }, []);
+
+  /* ---------------- Cola de envío ---------------- */
+  const vaciarCola = useCallback(
+    async (silencioso = false) => {
+      if (procesando.current || !pin || !pendientes()) return;
+      procesando.current = true;
+      const r = await procesarCola(pin);
+      procesando.current = false;
+      setEnCola(pendientes());
+
+      if (r.enviadas) {
+        setSent((p) => p.map((f) => (f.envio?.estado === "pendiente" ? { ...f, envio: { estado: "enviada" } } : f)));
+        toast(`${r.enviadas} ficha${r.enviadas === 1 ? "" : "s"} enviada${r.enviadas === 1 ? "" : "s"} a la oficina`);
+      }
+      if (r.rechazadas) toast(`${r.rechazadas} ficha${r.rechazadas === 1 ? "" : "s"} no se pudo enviar. Revísala en el historial.`, "error", 6000);
+      if (!r.enviadas && !r.rechazadas && !silencioso) {
+        toast(
+          r.motivo === "servidor"
+            ? "La oficina no responde. Se reintentará solo."
+            : "Todavía sin conexión. Se reintentará solo.",
+          "info"
+        );
+      }
+    },
+    [pin, toast]
+  );
+
+  /* Al arrancar y cada vez que vuelve la red. */
   useEffect(() => {
-    if (agentesData) return;
+    vaciarCola(true);
+    const alVolver = () => vaciarCola(true);
+    window.addEventListener("online", alVolver);
+    return () => window.removeEventListener("online", alVolver);
+  }, [vaciarCola]);
+
+  /* Link con ?pin=… : se valida solo y se limpia la URL de inmediato. */
+  useEffect(() => {
     const pinUrl = new URLSearchParams(window.location.search).get("pin");
     if (!pinUrl) return;
+
+    const limpiarUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("pin");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    };
+
+    if (agentesData) {
+      limpiarUrl();
+      return;
+    }
+
     (async () => {
       try {
         const r = await fetch("/api/agentes", {
@@ -777,59 +102,185 @@ export default function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pin: pinUrl }),
         });
-        if (r.ok) unlock(await r.json());
-      } catch {}
-      const url = new URL(window.location.href);
-      url.searchParams.delete("pin");
-      window.history.replaceState({}, "", url.pathname + url.search);
+        if (r.ok) unlock(await r.json(), pinUrl);
+        else if (r.status === 401) setAvisoPin("El enlace tiene un PIN caducado. Pide el nuevo a la oficina.");
+        else if (r.status === 429) setAvisoPin("Demasiados intentos. Espera unos minutos.");
+        else setAvisoPin("No se pudo validar el enlace. Introduce el PIN a mano.");
+      } catch {
+        setAvisoPin("Sin conexión. Introduce el PIN cuando vuelvas a tener red.");
+      }
+      limpiarUrl();
       setAutoChecking(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const selectAgent = (a) => { setAgente(a); save(STORE_AGENT, a); setFicha(emptyFicha(a)); setTab("ficha"); };
-  const changeAgent = () => { setAgente(null); try { localStorage.removeItem(STORE_AGENT); } catch {} };
+  /* ---------------- Agente ---------------- */
+  const selectAgent = (a) => {
+    setAgente(a);
+    save(K.AGENT, a);
+    setFicha((f) => (Object.keys(f.data).length ? { ...f, agenteId: a.id, agenteName: a.name } : fichaVacia(a)));
+    setTab("ficha");
+  };
+
+  const changeAgent = () => {
+    setAgente(null);
+    remove(K.AGENT);
+  };
+
   const setAgenteActivo = (id) => {
     const a = agentesData.agentes.find((x) => x.id === id);
     if (!a) return;
-    setAgente(a); save(STORE_AGENT, a);
+    setAgente(a);
+    save(K.AGENT, a);
     setFicha((f) => ({ ...f, agenteId: a.id, agenteName: a.name }));
   };
 
-  const saveDraft = () => {
-    setDrafts((p) => { const ex = p.find((d) => d.id === ficha.id); return ex ? p.map((d) => d.id === ficha.id ? ficha : d) : [...p, ficha]; });
-    alert("Borrador guardado");
+  const refreshAgentes = () => {
+    remove(K.CACHE);
+    setAgentesData(null);
+    toast("Vuelve a introducir el PIN para descargar la lista", "info");
   };
-  const sendFicha = (f) => {
-    setSent((p) => [...p, { ...f, fecha: new Date().toISOString() }]);
-    setDrafts((p) => p.filter((d) => d.id !== f.id));
-    setTimeout(() => { setFicha(emptyFicha(agente)); setTab("historial"); }, 600);
+
+  const cerrarSesion = () => {
+    if (pendientes()) {
+      toast("Quedan fichas por enviar. Espera a tener conexión antes de salir.", "error", 5000);
+      return;
+    }
+    remove(K.CACHE);
+    remove(K.AGENT);
+    remove(K.PIN);
+    setPin("");
+    setAgentesData(null);
+    setAgente(null);
   };
-  const openDraft = (f) => { setFicha(f); setTab("ficha"); };
-  const resend = (f) => { enviarFicha(f, agentesData.destinatario); };
+
+  /* ---------------- Fichas ---------------- */
+  const saveDraft = useCallback(() => {
+    setDrafts((p) => {
+      const existe = p.some((d) => d.id === ficha.id);
+      return podar(existe ? p.map((d) => (d.id === ficha.id ? ficha : d)) : [...p, ficha]);
+    });
+  }, [ficha]);
+
+  const onEnviada = useCallback(
+    (f, envio) => {
+      setSent((p) => podar([...p.filter((x) => x.id !== f.id), { ...f, fecha: new Date().toISOString(), envio }]));
+      setDrafts((p) => p.filter((d) => d.id !== f.id));
+      setEnCola(pendientes());
+      setTimeout(() => {
+        setFicha(fichaVacia(agente));
+        remove(K.BORRADOR_ACTIVO);
+        setTab("historial");
+      }, 700);
+    },
+    [agente]
+  );
+
+  const openDraft = (f) => {
+    setFicha(f);
+    setTab("ficha");
+    toast("Borrador abierto", "info");
+  };
+
+  /* Reintento manual desde el historial. */
+  const reintentar = async (f) => {
+    const res = await enviarAlServidor(f, pin);
+    if (res.ok) {
+      desencolar(f.id);
+      setSent((p) => p.map((x) => (x.id === f.id ? { ...x, envio: { estado: "enviada" } } : x)));
+      setEnCola(pendientes());
+      toast("Ficha enviada a la oficina");
+    } else if (res.tipo === "rechazada") {
+      desencolar(f.id);
+      setSent((p) => p.map((x) => (x.id === f.id ? { ...x, envio: { estado: "rechazada", error: res.error } } : x)));
+      setEnCola(pendientes());
+      toast(res.error, "error", 6000);
+    } else {
+      encolar(f);
+      setEnCola(pendientes());
+      toast(
+        res.tipo === "servidor"
+          ? `La oficina no pudo guardarla: ${res.error}. Se reintentará solo.`
+          : "Sigue sin haber conexión. Se reintentará solo.",
+        "info",
+        6000
+      );
+    }
+    return res;
+  };
+
   const del = (which, id) => {
     if (which === "drafts") setDrafts((p) => p.filter((d) => d.id !== id));
     else setSent((p) => p.filter((d) => d.id !== id));
+    desencolar(id);
+    setEnCola(pendientes());
+    toast("Ficha eliminada", "info");
   };
 
+  const borrarTodo = () => {
+    setDrafts([]);
+    setSent([]);
+    remove(K.BORRADOR_ACTIVO);
+    remove(K.COLA);
+    setEnCola(0);
+    setFicha(fichaVacia(agente));
+    toast("Datos borrados de este dispositivo");
+  };
+
+  /* ---------------- Render ---------------- */
+  if (autoChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-ios-fondo">
+        <Loader2 size={28} className="animate-spin text-rk-naranja" aria-label="Validando acceso" />
+      </div>
+    );
+  }
+
+  if (!agentesData) return <PinGate onUnlock={unlock} avisoInicial={avisoPin} />;
+
+  if (!agente) {
+    return <AgentPicker agentes={agentesData.agentes} onSelect={selectAgent} ultimo={ultimoAgente} />;
+  }
+
   return (
-    <div className="max-w-md mx-auto min-h-screen relative" style={{ fontFamily: "'Montserrat','-apple-system',BlinkMacSystemFont,'Segoe UI',sans-serif", background: "#F9FAFB" }}>
-      {autoChecking ? (
-        <div className="min-h-full flex items-center justify-center bg-[#F9FAFB]">
-          <Loader2 size={28} className="animate-spin" style={{ color: C.naranja }} />
-        </div>
-      ) : !agentesData ? (
-        <PinGate onUnlock={unlock} />
-      ) : !agente ? (
-        <AgentPicker agentes={agentesData.agentes} onSelect={selectAgent} ultimo={ultimoAgente} />
-      ) : (
-        <>
-          {tab === "ficha" && <Formulario agente={agente} agentes={agentesData.agentes} destinatario={agentesData.destinatario} ficha={ficha} setFicha={setFicha} onSaveDraft={saveDraft} onSend={sendFicha} onChangeAgent={setAgenteActivo} />}
-          {tab === "historial" && <Historial drafts={drafts} sent={sent} onOpenDraft={openDraft} onResend={resend} onDelete={del} />}
-          {tab === "perfil" && <Perfil agente={agente} sent={sent} onChange={changeAgent} onRefreshAgentes={refreshAgentes} />}
-          <BottomNav tab={tab} setTab={setTab} />
-        </>
+    <>
+      {tab === "ficha" && (
+        <Formulario
+          agente={agente}
+          agentes={agentesData.agentes}
+          pin={pin}
+          ficha={ficha}
+          setFicha={setFicha}
+          onSaveDraft={saveDraft}
+          onEnviada={onEnviada}
+          onChangeAgent={setAgenteActivo}
+        />
       )}
-    </div>
+      {tab === "historial" && (
+        <Historial
+          drafts={drafts}
+          sent={sent}
+          enCola={enCola}
+          onOpenDraft={openDraft}
+          onReintentar={reintentar}
+          onSincronizar={() => vaciarCola(false)}
+          onDelete={del}
+        />
+      )}
+      {tab === "perfil" && (
+        <Perfil
+          agente={agente}
+          sent={sent}
+          drafts={drafts}
+          enCola={enCola}
+          onChangeAgent={changeAgent}
+          onRefreshAgentes={refreshAgentes}
+          onCerrarSesion={cerrarSesion}
+          onBorrarTodo={borrarTodo}
+        />
+      )}
+      <BottomNav tab={tab} setTab={setTab} badge={drafts.length + enCola} />
+    </>
   );
 }
