@@ -15,8 +15,11 @@ self.addEventListener("push", (evento) => {
   evento.waitUntil(
     self.registration.showNotification(titulo, {
       body: datos.cuerpo || "",
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
+      /* El isotipo de la empresa sobre la tinta de marca. El badge es lo que
+         Android pinta en la barra de estado y lo convierte en silueta, así que
+         va aparte: con el icono a color salía un cuadrado blanco macizo. */
+      icon: "/icono-notificacion-192.png",
+      badge: "/icono-badge-96.png",
       /* La etiqueta agrupa: dos avisos de la misma ficha se sustituyen en vez
          de apilarse en la pantalla de bloqueo. */
       tag: datos.etiqueta || "rk-captacion",
