@@ -115,13 +115,22 @@ export async function actualizar(sql, body, res, usuario) {
   /* El agente quiere saber cómo va lo suyo. Se avisa solo cuando la fase
      cambia de verdad: guardar una nota no es noticia para él. */
   if (body.estado && body.estado !== previa.estado) {
+    const fase = faseDe(body.estado)?.label || "otra fase";
     const aviso = await notificarSinBloquear({
       tipo: "agente",
       destinatario: previa.agente_id,
-      titulo: faseDe(body.estado)?.label || "Captación actualizada",
-      cuerpo: nombreDeFicha(previa),
+      /* Un título que se entienda en la pantalla de bloqueo. Antes decía solo
+         "Pendiente", que fuera de contexto no dice de qué va. */
+      titulo: `Tu captación ${nombreDeFicha(previa)}`,
+      cuerpo: `Ahora está en ${fase}.`,
       url: "/",
-      etiqueta: `ficha-${row.id}`,
+      /* Una etiqueta distinta por CAMBIO, no por ficha. Con `ficha-<id>` a
+         secas, cada cambio de la misma captación sustituía al aviso anterior
+         en el centro de notificaciones en vez de avisar, y el agente solo veía
+         el primero. Agrupar tenía sentido para la oficina, que avisa una sola
+         vez por ficha; aquí cada movimiento es una noticia, y perderse uno es
+         mucho peor que ver dos. */
+      etiqueta: `ficha-${row.id}-${new Date(row.actualizada_en).getTime()}`,
     });
     console.log(`Fase ${previa.estado} → ${body.estado}: ${aviso.enviadas} aviso(s) al agente`);
   }
