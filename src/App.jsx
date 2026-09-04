@@ -28,6 +28,8 @@ export default function App() {
   const [ficha, setFicha] = useState(() => load(K.BORRADOR_ACTIVO, null) || fichaVacia(null));
   const toast = useToast();
   const procesando = useRef(false);
+  const consultando = useRef(false);
+  const avisadas = useRef(new Set());
 
   const ultimoAgente = useMemo(() => load(K.AGENT, null), []);
 
@@ -81,41 +83,65 @@ export default function App() {
      preguntara. Se consulta al abrir el historial, al arrancar y al volver a
      la app; no hace falta más para algo que cambia unas pocas veces al día. */
   const sincronizarFases = useCallback(async () => {
-    const ids = sent.filter((f) => f.envio?.estado === "enviada").map((f) => f.id);
-    if (!pin || !ids.length) return;
+    /* Solo las fichas de quien está usando el móvil ahora mismo. Un agente no
+       tiene por qué enterarse de lo que la oficina hace con las captaciones de
+       otro, aunque hayan pasado por este mismo teléfono. */
+    const mias = sent.filter((f) => f.envio?.estado === "enviada" && f.agenteId === agente?.id);
+    const ids = mias.map((f) => f.id);
+    if (!pin || !agente?.id || !ids.length) return;
 
-    const r = await consultarEstados(pin, ids);
+    /* Dos vueltas seguidas a la app pueden preguntar con la misma lista, antes
+       de que se haya rehecho el historial. Sin este cerrojo el aviso salía otra
+       vez por una ficha que ya se había quitado. */
+    if (consultando.current) return;
+    consultando.current = true;
+    const r = await consultarEstados(pin, ids, agente.id).finally(() => {
+      consultando.current = false;
+    });
     if (!r.ok) return;
 
     if (r.eliminadas.length) {
       setSent((p) => p.filter((f) => !r.eliminadas.includes(f.id)));
-      toast(
-        r.eliminadas.length === 1
-          ? "La oficina ha eliminado una ficha de tu historial"
-          : `La oficina ha eliminado ${r.eliminadas.length} fichas de tu historial`,
-        "info",
-        6000
-      );
+
+      /* Se avisa de cada ficha una sola vez. El servidor seguirá diciendo que
+         no la tiene cada vez que se le pregunte, y eso no es una novedad. */
+      const nuevas = r.eliminadas.filter((id) => !avisadas.current.has(id));
+      nuevas.forEach((id) => avisadas.current.add(id));
+      if (nuevas.length) {
+        toast(
+          nuevas.length === 1
+            ? "La oficina ha eliminado una ficha de tu historial"
+            : `La oficina ha eliminado ${nuevas.length} fichas de tu historial`,
+          "info",
+          6000
+        );
+      }
     }
 
     setSent((p) =>
       p.map((f) => (r.estados[f.id] && r.estados[f.id] !== f.fase ? { ...f, fase: r.estados[f.id] } : f))
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin, sent, toast]);
+  }, [pin, sent, agente?.id, toast]);
+
+  /* El listener de abajo se registra una sola vez, así que sin esto se quedaría
+     llamando a la primera versión de sincronizarFases, con la lista de fichas
+     del arranque: cada vez que se volvía a la app repetía el aviso de una ficha
+     que ya se había quitado del historial. */
+  const sincronizarRef = useRef(sincronizarFases);
+  useEffect(() => { sincronizarRef.current = sincronizarFases; }, [sincronizarFases]);
 
   useEffect(() => {
     if (tab !== "historial") return;
-    sincronizarFases();
+    sincronizarRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, pin]);
+  }, [tab, pin, agente?.id]);
 
   useEffect(() => {
-    const alVolver = () => document.visibilityState === "visible" && sincronizarFases();
+    const alVolver = () => document.visibilityState === "visible" && sincronizarRef.current();
     document.addEventListener("visibilitychange", alVolver);
     return () => document.removeEventListener("visibilitychange", alVolver);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin]);
+  }, []);
 
   /* Al arrancar y cada vez que vuelve la red. */
   useEffect(() => {

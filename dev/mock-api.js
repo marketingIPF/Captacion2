@@ -2,6 +2,7 @@
    Permite trabajar en el panel y en el formulario sin Neon ni `vercel dev`.
    Los datos viven en memoria y se pierden al reiniciar. */
 import { randomUUID } from "node:crypto";
+import { repartir } from "../api/estado.js";
 
 const PIN_ACCESO = "agentes-2026";
 
@@ -288,15 +289,11 @@ export function mockApi() {
 
         if (ruta === "/api/estado") {
           if (body.pin !== PIN_ACCESO) return responder(res, 401, { error: "PIN incorrecto" });
+          /* Se reutiliza la función del endpoint real: si el simulador
+             decidiera esto por su cuenta, probaríamos algo que no existe. */
           const ids = Array.isArray(body.ids) ? body.ids : [];
-          const estados = {};
-          const eliminadas = [];
-          for (const id of ids) {
-            const f = fichas.get(id);
-            if (f && !f.eliminada_en) estados[id] = f.estado;
-            else eliminadas.push(id);
-          }
-          return responder(res, 200, { estados, eliminadas });
+          const filas = ids.map((id) => fichas.get(id)).filter(Boolean);
+          return responder(res, 200, repartir(ids, filas, body.agenteId || ""));
         }
 
         if (ruta === "/api/fichas") {

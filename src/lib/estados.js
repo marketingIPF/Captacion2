@@ -3,13 +3,13 @@
    para que su historial diga la verdad y no un "recibida" congelado del día
    que la mandó. */
 
-export async function consultarEstados(pin, ids) {
+export async function consultarEstados(pin, ids, agenteId) {
   if (!pin || !ids?.length) return { ok: true, estados: {}, eliminadas: [] };
   try {
     const r = await fetch("/api/estado", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pin, ids }),
+      body: JSON.stringify({ pin, ids, agenteId }),
     });
     if (!r.ok) return { ok: false };
     const { estados, eliminadas } = await r.json();

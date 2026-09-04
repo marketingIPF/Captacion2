@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FASES, CLAVES_FASE, faseDe, faseOPrimera } from "../src/lib/fases.js";
 import { ESTADOS } from "../api/_ficha.js";
+import { repartir } from "../api/estado.js";
 
 test("el servidor valida contra las mismas fases que se pintan", () => {
   assert.deepEqual(ESTADOS, CLAVES_FASE);
@@ -41,4 +42,31 @@ test("el texto blanco sobre el tono fuerte se lee (WCAG AA)", () => {
     const contraste = 1.05 / (luminancia(f.fuerte) + 0.05);
     assert.ok(contraste >= 4.5, `${f.key}: ${contraste.toFixed(2)}:1 con blanco encima, hace falta 4.5`);
   }
+});
+
+test("el móvil solo recibe noticias de las fichas de su agente", () => {
+  /* El PIN es el mismo para todo el equipo: sin filtrar por agente, cualquiera
+     podría ir siguiendo las captaciones de un compañero desde su móvil. */
+  const ids = ["mia", "de-otro", "mia-borrada", "de-otro-borrada", "nunca-llego"];
+  const filas = [
+    { id: "mia", estado: "publicada", agente_id: "eva", eliminada_en: null },
+    { id: "de-otro", estado: "pendiente", agente_id: "fede", eliminada_en: null },
+    { id: "mia-borrada", estado: "nueva", agente_id: "eva", eliminada_en: "2026-09-04" },
+    { id: "de-otro-borrada", estado: "nueva", agente_id: "fede", eliminada_en: "2026-09-04" },
+  ];
+
+  const r = repartir(ids, filas, "eva");
+  assert.deepEqual(r.estados, { mia: "publicada" }, "la fase de otro no se cuenta");
+  assert.deepEqual(
+    r.eliminadas.sort(),
+    ["mia-borrada", "nunca-llego"],
+    "de otro no se avisa; borrarla del historial ajeno sería peor que callarse"
+  );
+});
+
+test("sin agente indicado se responde por todas: un móvil viejo no se queda a medias", () => {
+  const filas = [{ id: "a", estado: "nueva", agente_id: "eva", eliminada_en: null }];
+  const r = repartir(["a", "b"], filas, "");
+  assert.deepEqual(r.estados, { a: "nueva" });
+  assert.deepEqual(r.eliminadas, ["b"]);
 });

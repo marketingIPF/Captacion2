@@ -16,22 +16,19 @@ export default async function handler(req, res) {
     ? [...new Set(body.ids.filter((v) => typeof v === "string" && UUID_RE.test(v)))].slice(0, MAX_IDS)
     : [];
 
+  const agenteId = typeof body.agenteId === "string" ? body.agenteId.trim().slice(0, 100) : "";
+
   if (!ids.length) return res.status(200).json({ estados: {}, eliminadas: [] });
 
   try {
     const sql = db();
     const filas = await sql`
-      select id, estado, corregida_en
+      select id, estado, agente_id, eliminada_en
       from fichas
-      where id = any(${ids}::uuid[]) and eliminada_en is null
+      where id = any(${ids}::uuid[])
     `;
 
-    const estados = Object.fromEntries(filas.map((f) => [f.id, f.estado]));
-    /* Lo que el agente tiene y el servidor ya no: borrada en la oficina, o
-       nunca llegó a guardarse. En ambos casos su historial debe reflejarlo. */
-    const eliminadas = ids.filter((id) => !(id in estados));
-
-    res.status(200).json({ estados, eliminadas });
+    res.status(200).json(repartir(ids, filas, agenteId));
   } catch (err) {
     console.error("Error consultando estados", err);
     if (err?.esConfiguracion) {
@@ -40,4 +37,27 @@ export default async function handler(req, res) {
     }
     res.status(503).json({ error: "No se pudieron consultar los estados" });
   }
+}
+
+/* Qué se le contesta al móvil sobre cada ficha que dice tener.
+
+   De otro agente no se contesta nada: ni en qué fase va, ni que la hayan
+   borrado. El PIN es común a toda la oficina, así que sin este filtro
+   cualquier móvil podría seguir las captaciones de un compañero.
+
+   Y una ficha ajena tampoco se marca como eliminada: el móvil se la quitaría
+   del historial, que es justo lo contrario de lo que hace falta. */
+export function repartir(ids, filas, agenteId) {
+  const propia = (f) => !agenteId || f.agente_id === agenteId;
+
+  const estados = Object.fromEntries(
+    filas.filter((f) => !f.eliminada_en && propia(f)).map((f) => [f.id, f.estado])
+  );
+
+  /* Se quita del historial lo que el servidor ya no tiene: borrada en la
+     oficina, o nunca llegó a guardarse. */
+  const ajenas = new Set(filas.filter((f) => !propia(f)).map((f) => f.id));
+  const eliminadas = ids.filter((id) => !(id in estados) && !ajenas.has(id));
+
+  return { estados, eliminadas };
 }
