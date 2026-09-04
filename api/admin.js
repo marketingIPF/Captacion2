@@ -1,6 +1,9 @@
 import { autorizarPanel } from "./_auth.js";
 import { db } from "./_db.js";
 import { filaAFicha, filaAResumen, fichaAFila, ESTADOS } from "./_ficha.js";
+import { notificarSinBloquear } from "./_push.js";
+import { nombreDeFicha } from "../src/lib/resumen.js";
+import { faseDe } from "../src/lib/fases.js";
 
 /* Panel de oficina. El acceso va por sesión de Neon Auth (Google), no por PIN:
    cada persona entra con su cuenta y se le puede revocar el acceso por
@@ -91,6 +94,14 @@ export async function actualizar(sql, body, res, usuario) {
   }
   const nota = body.nota === undefined ? null : String(body.nota).slice(0, 2000);
 
+  /* Se lee antes para saber si la fase cambia de verdad y a qué agente avisar:
+     después del UPDATE ya no se puede distinguir de un guardado sin cambios. */
+  const [previa] = await sql`
+    select estado, agente_id, referencia, direccion, numero
+    from fichas where id = ${body.id} and eliminada_en is null
+  `;
+  if (!previa) return res.status(404).json({ error: "Ficha no encontrada" });
+
   const [row] = await sql`
     update fichas set
       estado = coalesce(${body.estado ?? null}, estado),
@@ -100,6 +111,20 @@ export async function actualizar(sql, body, res, usuario) {
     returning id, estado, nota_oficina, actualizada_en, actualizada_por
   `;
   if (!row) return res.status(404).json({ error: "Ficha no encontrada" });
+
+  /* El agente quiere saber cómo va lo suyo. Se avisa solo cuando la fase
+     cambia de verdad: guardar una nota no es noticia para él. */
+  if (body.estado && body.estado !== previa.estado) {
+    await notificarSinBloquear({
+      tipo: "agente",
+      destinatario: previa.agente_id,
+      titulo: faseDe(body.estado)?.label || "Captación actualizada",
+      cuerpo: nombreDeFicha(previa),
+      url: "/",
+      etiqueta: `ficha-${row.id}`,
+    });
+  }
+
   res.status(200).json({ ok: true, ficha: row });
 }
 

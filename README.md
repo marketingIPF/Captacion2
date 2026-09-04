@@ -157,6 +157,12 @@ src/data/secciones.js   ESQUEMA DE LA FICHA — el archivo que se toca para
 src/lib/ficha.js        Aplicabilidad, progreso, validación de la ficha
 src/lib/validacion.js   DNI, teléfono, CP, año, y números en formato es-ES
 src/lib/cola.js         Cola de envío offline con reintentos
+src/lib/fases.js        Las fases del proceso: única definición, con sus colores
+src/lib/push.js         Alta y baja de notificaciones en el navegador
+api/_push.js            Envío de notificaciones y limpieza de endpoints muertos
+api/push.js             Alta y baja de suscripciones (agente por PIN, oficina
+                        por sesión)
+api/estado.js           Fase de las fichas que el agente tiene en el móvil
 src/lib/catastro.js     Consulta al Catastro y relleno automático de la ficha
 src/lib/resumen.js      Estructura legible de la ficha (texto y panel)
 src/lib/storage.js      Claves, caducidad de la caché, poda del historial
@@ -195,6 +201,33 @@ respuestas grabadas en `test/fixtures/`, así que no dependen de la red.
 > El dominio del Catastro está en `connect-src` del CSP, igual que el servidor
 > de Neon Auth. Si se añade cualquier servicio externo al que llame el
 > navegador, hay que añadirlo ahí o las llamadas fallan sin aviso visible.
+
+### Notificaciones push
+Julia recibe un aviso por cada captación nueva; el agente, cada vez que la
+oficina mueve una suya de fase. Ambos se activan con un botón —en Perfil para
+el agente, en la cabecera del panel para la oficina— porque el permiso lo da
+la persona, no la app.
+
+Las claves VAPID se generan una vez y van a las variables de entorno. Sin
+ellas la app funciona igual: no ofrece los avisos.
+
+```bash
+npm run push:probar   # comprueba la cadena sin navegador, contra la base real
+```
+
+Detalles que conviene conocer:
+
+- Los manejadores viven en `public/push-sw.js` y el service worker los importa.
+  Escribirlos dentro del service worker no serviría: Workbox lo regenera en
+  cada compilación.
+- Un envío nunca puede tumbar la operación que lo provoca. Si el push falla, la
+  ficha ya se guardó igual.
+- Un endpoint que responde 404 o 410 es un navegador que ya no existe: se borra
+  en vez de reintentar contra él indefinidamente.
+- Solo se avisa de las captaciones **nuevas**, no de las correcciones, y solo
+  cuando la fase **cambia** de verdad: guardar una nota no es noticia.
+- En iPhone los avisos solo llegan si la app está añadida a la pantalla de
+  inicio. Es una limitación de iOS, no del código.
 
 ### Añadir o cambiar un campo
 Todo en `src/data/secciones.js`:

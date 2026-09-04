@@ -276,6 +276,16 @@ export function mockApi() {
           return responder(res, 200, { agentes: AGENTES, destinatario: "oficina@rk.test" });
         }
 
+        if (ruta === "/api/push") {
+          /* El simulador acepta el alta sin más: probar el envío real requiere
+             un servicio de push de verdad, y eso solo tiene sentido contra
+             producción. Aquí se comprueba el botón, no la entrega. */
+          if (!body.suscripcion?.endpoint && body.accion !== "baja") {
+            return responder(res, 400, { error: "Suscripción incompleta" });
+          }
+          return responder(res, 200, { ok: true, simulado: true });
+        }
+
         if (ruta === "/api/estado") {
           if (body.pin !== PIN_ACCESO) return responder(res, 401, { error: "PIN incorrecto" });
           const ids = Array.isArray(body.ids) ? body.ids : [];

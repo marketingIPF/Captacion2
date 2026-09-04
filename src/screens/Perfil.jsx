@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { RefreshCw, LogOut, ShieldCheck, Trash2, Users } from "lucide-react";
 import { Avatar } from "../components/Avatar.jsx";
+import { BotonNotificaciones } from "../components/BotonNotificaciones.jsx";
 import { MAX_HISTORIAL } from "../lib/storage.js";
 
-export function Perfil({ agente, sent, drafts, enCola = 0, onChangeAgent, onRefreshAgentes, onCerrarSesion, onBorrarTodo }) {
+export function Perfil({ agente, sent, drafts, enCola = 0, pin, onChangeAgent, onRefreshAgentes, onCerrarSesion, onBorrarTodo }) {
   const [confirmar, setConfirmar] = useState(false);
   const mias = sent.filter((f) => f.agenteId === agente.id);
 
@@ -37,6 +38,10 @@ export function Perfil({ agente, sent, drafts, enCola = 0, onChangeAgent, onRefr
         </div>
 
         <div className="bg-white rounded-2xl border border-ios-borde shadow-sm divide-y divide-ios-borde overflow-hidden">
+          <BotonNotificaciones
+            credenciales={{ pin, agenteId: agente.id }}
+            descripcion="Te avisamos cuando la oficina mueva una captación tuya."
+          />
           <button
             type="button"
             onClick={onChangeAgent}

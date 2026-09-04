@@ -38,6 +38,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,svg,webp,woff2}"],
+        /* Los manejadores de push viven en su propio archivo y se importan
+           aquí: el service worker lo regenera Workbox en cada compilación y
+           cualquier código escrito dentro se perdería. */
+        importScripts: ["/push-sw.js"],
         /* La respuesta de /api/agentes lleva datos personales: nunca se cachea. */
         navigateFallbackDenylist: [/^\/api\//, /^\/admin/],
         runtimeCaching: []

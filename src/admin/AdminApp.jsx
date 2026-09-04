@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote } from "lucide-react";
+import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
 import { nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
 import { llamar, ESTADOS, estadoDe } from "./api.js";
-import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl } from "./auth.js";
+import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl, tokenDeSesion } from "./auth.js";
+import { pushSoportado, permisoActual, suscripcionActual, activarPush, desactivarPush } from "../lib/push.js";
 import { FichaDetalle } from "./FichaDetalle.jsx";
 import { ListadoImprimible } from "./Imprimible.jsx";
 import { AdminLogin } from "./AdminLogin.jsx";
@@ -33,6 +34,24 @@ export function AdminApp() {
   };
   const [paraImprimir, setParaImprimir] = useState(null);
   const [preparandoImpresion, setPreparandoImpresion] = useState(false);
+  const [avisosActivos, setAvisosActivos] = useState(false);
+  const [cambiandoAvisos, setCambiandoAvisos] = useState(false);
+
+  /* El estado real lo tiene el navegador, no la app: se consulta en vez de
+     recordarlo, porque se puede cambiar desde los ajustes sin pasar por aquí. */
+  useEffect(() => {
+    if (!sesion) return;
+    suscripcionActual().then((s) => setAvisosActivos(Boolean(s) && permisoActual() === "granted"));
+  }, [sesion]);
+
+  const alternarAvisos = async () => {
+    setCambiandoAvisos(true);
+    const token = await tokenDeSesion();
+    const r = avisosActivos ? await desactivarPush({ token }) : await activarPush({ token });
+    if (r.ok) setAvisosActivos(!avisosActivos);
+    else setError(r.error);
+    setCambiandoAvisos(false);
+  };
 
   const salir = useCallback(async () => {
     olvidarToken();
@@ -158,6 +177,29 @@ export function AdminApp() {
             Panel de captaciones
           </span>
           <div className="flex-1" />
+          {pushSoportado() && (
+            <button
+              type="button"
+              onClick={alternarAvisos}
+              disabled={cambiandoAvisos}
+              aria-pressed={avisosActivos}
+              aria-label={avisosActivos ? "Desactivar los avisos de captación nueva" : "Activar los avisos de captación nueva"}
+              title={avisosActivos ? "Avisos activados en este navegador" : "Avisarme de cada captación nueva"}
+              className={`w-9 h-9 rounded-lg flex items-center justify-center active:scale-95 transition disabled:opacity-60 ${
+                avisosActivos
+                  ? "bg-rk-soft text-rk-naranja"
+                  : "bg-ios-fondo dark:bg-ios-elevada-osc text-ios-texto2 dark:text-ios-texto2-osc"
+              }`}
+            >
+              {cambiandoAvisos ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : avisosActivos ? (
+                <Bell size={16} />
+              ) : (
+                <BellOff size={16} />
+              )}
+            </button>
+          )}
           <button
             type="button"
             onClick={cargar}

@@ -1,6 +1,8 @@
 import { autorizar } from "./_auth.js";
 import { db } from "./_db.js";
 import { fichaAFila } from "./_ficha.js";
+import { notificarSinBloquear } from "./_push.js";
+import { nombreDeFicha } from "../src/lib/resumen.js";
 
 /* Recibe una ficha del agente y la guarda en Neon.
    Idempotente: reenviar la misma ficha actualiza la fila, no crea otra. Es lo
@@ -54,6 +56,21 @@ export default async function handler(req, res) {
         propietarios = excluded.propietarios
       returning id, recibida_en, corregida_en, envios
     `;
+
+    /* Solo se avisa de las nuevas: una corrección no es una captación más y
+       llenaría el ordenador de Julia de avisos por cada retoque. */
+    if (row.envios === 1) {
+      const f = { data: fila.datos, referencia: fila.referencia, direccion: fila.direccion, numero: fila.numero };
+      await notificarSinBloquear({
+        tipo: "oficina",
+        /* Sin destinatario: a todos los de oficina que estén suscritos. */
+        titulo: "Nueva captación",
+        cuerpo: `${nombreDeFicha(f)} · ${fila.agente_nombre}`,
+        url: "/admin",
+        etiqueta: `ficha-${row.id}`,
+      });
+    }
+
     res.status(200).json({
       ok: true,
       id: row.id,

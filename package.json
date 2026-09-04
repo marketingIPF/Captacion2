@@ -21,7 +21,8 @@
     "db:prueba": "node --env-file=.env dev/fichas-de-prueba.mjs",
     "db:prueba:borrar": "node --env-file=.env dev/fichas-de-prueba.mjs --borrar",
     "iagestion:previa": "node --env-file=.env dev/iagestion-vista-previa.mjs",
-    "iagestion:tipos": "node --env-file=.env dev/iagestion-tipos.mjs"
+    "iagestion:tipos": "node --env-file=.env dev/iagestion-tipos.mjs",
+    "push:probar": "node --env-file=.env dev/probar-push.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
@@ -29,7 +30,8 @@
     "jose": "^6.2.10",
     "lucide-react": "^0.439.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

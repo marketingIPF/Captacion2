@@ -326,6 +326,7 @@ export default function App() {
           sent={sent}
           drafts={drafts}
           enCola={enCola}
+          pin={pin}
           onChangeAgent={changeAgent}
           onRefreshAgentes={refreshAgentes}
           onCerrarSesion={cerrarSesion}
