@@ -23,7 +23,7 @@
     "iagestion:previa": "node --env-file=.env dev/iagestion-vista-previa.mjs",
     "iagestion:tipos": "node --env-file=.env dev/iagestion-tipos.mjs",
     "push:probar": "node --env-file=.env dev/probar-push.mjs",
-    "icono": "node dev/generar-icono-notificacion.mjs"
+    "iconos": "node dev/generar-iconos.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

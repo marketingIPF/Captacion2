@@ -18,7 +18,7 @@ export default defineConfig({
          worker viejo no les llegaba a servir. Y el autoguardado ya cubre el
          riesgo original: la recarga dispara `pagehide`, que vuelca la ficha. */
       registerType: "autoUpdate",
-      includeAssets: ["icon-192.png", "icon-512.png", "apple-touch-icon.png"],
+      includeAssets: ["icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "isotipo.svg"],
       manifest: {
         name: "Ficha de Captación · RK Palanca",
         short_name: "Captación",
@@ -33,7 +33,11 @@ export default defineConfig({
         icons: [
           { src: "icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icon-512.png", sizes: "512x512", type: "image/png" },
-          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+          /* El maskable es un archivo aparte, a sangre y con la marca más
+             pequeña: Android recorta un círculo del 80% y le da la forma que
+             quiera. Reutilizar aquí el icono redondeado dejaba un recuadro
+             flotando dentro del círculo. */
+          { src: "icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
         ]
       },
       workbox: {
