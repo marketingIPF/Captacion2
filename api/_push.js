@@ -17,13 +17,27 @@ function preparar() {
     configurado = false;
     return false;
   }
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:info@inmobiliariapalanca.com",
-    publica,
-    privada
-  );
+  try {
+    webpush.setVapidDetails(sujetoVapid(), publica, privada);
+  } catch (err) {
+    console.error("Claves VAPID inválidas: las notificaciones quedan desactivadas.", err.message);
+    configurado = false;
+    return false;
+  }
   configurado = true;
   return true;
+}
+
+/* web-push exige que el sujeto sea una URL o un "mailto:". Poner ahí el correo
+   a secas es el error natural al copiar la variable, y hacía que TODO /api/push
+   respondiera 500. Se completa aquí en vez de confiar en que esté bien escrito
+   en cada entorno. */
+export function sujetoVapid(valor = process.env.VAPID_SUBJECT) {
+  const s = String(valor || "").trim();
+  if (!s) return "mailto:info@inmobiliariapalanca.com";
+  if (/^(https?:|mailto:)/i.test(s)) return s;
+  if (s.includes("@")) return `mailto:${s}`;
+  return `https://${s}`;
 }
 
 export const pushDisponible = () => preparar();
