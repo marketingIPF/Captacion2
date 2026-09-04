@@ -48,13 +48,16 @@ export async function guardarSuscripcion({ tipo, destinatario, suscripcion }) {
     return { ok: false, error: "Suscripción incompleta" };
   }
   const sql = db();
-  /* El endpoint es la clave: si el navegador vuelve a suscribirse, se
-     actualiza en vez de duplicar, y se reinicia el contador de fallos. */
+  /* La clave es el navegador MÁS el papel. Con solo el endpoint, activar las
+     notificaciones en la app de agente desde el mismo Chrome donde se usa el
+     panel convertía la suscripción de la oficina en una de agente y la oficina
+     dejaba de recibir captaciones nuevas, sin que nadie se enterara.
+     Dentro de un mismo papel sí se sustituye: cambiar de agente en un móvil no
+     debe dejar activas las notificaciones del anterior. */
   await sql`
     insert into suscripciones_push (endpoint, tipo, destinatario, p256dh, auth)
     values (${endpoint}, ${tipo}, ${destinatario}, ${keys.p256dh}, ${keys.auth})
-    on conflict (endpoint) do update set
-      tipo = excluded.tipo,
+    on conflict (endpoint, tipo) do update set
       destinatario = excluded.destinatario,
       p256dh = excluded.p256dh,
       auth = excluded.auth,
@@ -63,10 +66,13 @@ export async function guardarSuscripcion({ tipo, destinatario, suscripcion }) {
   return { ok: true };
 }
 
-export async function borrarSuscripcion(endpoint) {
+/* Se da de baja solo el papel que la pide. Borrar por endpoint a secas dejaría
+   sin avisos a la oficina porque alguien los apagó en la app de agente desde el
+   mismo navegador. */
+export async function borrarSuscripcion(endpoint, tipo) {
   if (!endpoint) return { ok: false };
   const sql = db();
-  await sql`delete from suscripciones_push where endpoint = ${endpoint}`;
+  await sql`delete from suscripciones_push where endpoint = ${endpoint} and tipo = ${tipo}`;
   return { ok: true };
 }
 

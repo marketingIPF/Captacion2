@@ -56,7 +56,7 @@ export default async function handler(req, res) {
 
   try {
     if (body.accion === "baja") {
-      await borrarSuscripcion(body.endpoint);
+      await borrarSuscripcion(body.endpoint, tipo);
       res.status(200).json({ ok: true });
       return;
     }
