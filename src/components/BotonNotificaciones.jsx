@@ -1,25 +1,32 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Loader2, AlertCircle } from "lucide-react";
-import { pushSoportado, permisoActual, suscripcionActual, activarPush, desactivarPush } from "../lib/push.js";
+import { pushSoportado, permisoActual, notificacionesActivas, activarPush, desactivarPush } from "../lib/push.js";
 
 /* Interruptor de notificaciones para este navegador.
-   El estado real lo tiene el navegador, no la app: se consulta al montar en
-   vez de recordarlo, porque la persona puede haberlo cambiado en los ajustes
-   sin pasar por aquí. */
+   El estado no se recuerda, se consulta: la persona puede haberlo cambiado en
+   los ajustes del navegador sin pasar por aquí.
+
+   Y se le pregunta al SERVIDOR, no al navegador. El navegador tiene una única
+   suscripción para todo el sitio, compartida por el panel de oficina y la app
+   de agente; mirarla a ella hacía que activar en un sitio pintara el botón del
+   otro como activado, sin que llegara nada. */
 export function BotonNotificaciones({ credenciales, descripcion, className = "" }) {
   const [activas, setActivas] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [aviso, setAviso] = useState("");
 
+  const clave = JSON.stringify(credenciales || {});
   useEffect(() => {
     let vivo = true;
-    suscripcionActual().then((s) => {
+    setCargando(true);
+    notificacionesActivas(credenciales).then((si) => {
       if (!vivo) return;
-      setActivas(Boolean(s) && permisoActual() === "granted");
+      setActivas(si);
       setCargando(false);
     });
     return () => { vivo = false; };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave]);
 
   if (!pushSoportado()) return null;
 

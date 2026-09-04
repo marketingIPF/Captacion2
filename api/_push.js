@@ -66,6 +66,24 @@ export async function guardarSuscripcion({ tipo, destinatario, suscripcion }) {
   return { ok: true };
 }
 
+/* ¿Está este navegador suscrito en este papel? La pregunta la hace el botón:
+   el navegador tiene UNA suscripción compartida por todo el sitio, así que
+   mirarla a ella diría que sí en el panel solo porque se activó en la app de
+   agente. Quien sabe la verdad es el servidor. */
+export async function suscripcionRegistrada(endpoint, tipo) {
+  if (!endpoint) return false;
+  try {
+    const sql = db();
+    const r = await sql`
+      select 1 from suscripciones_push where endpoint = ${endpoint} and tipo = ${tipo} limit 1
+    `;
+    return r.length > 0;
+  } catch (err) {
+    console.error("No se pudo consultar la suscripción", err);
+    return false;
+  }
+}
+
 /* Se da de baja solo el papel que la pide. Borrar por endpoint a secas dejaría
    sin avisos a la oficina porque alguien los apagó en la app de agente desde el
    mismo navegador. */

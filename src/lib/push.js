@@ -56,33 +56,49 @@ export async function activarPush(credenciales) {
   }
 
   let suscripcion;
+  let reciennacida = false;
   try {
     const reg = await registro();
-    suscripcion =
-      (await reg.pushManager.getSubscription()) ||
-      (await reg.pushManager.subscribe({
+    suscripcion = await reg.pushManager.getSubscription();
+    if (!suscripcion) {
+      suscripcion = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: claveEnBytes(CLAVE_PUBLICA),
-      }));
+      });
+      reciennacida = true;
+    }
   } catch (err) {
     return { ok: false, error: err?.message || "El navegador no pudo suscribirse" };
   }
 
   const r = await enviarAlServidor("alta", suscripcion, credenciales);
-  if (!r.ok) {
-    /* Si el servidor no la guarda, no dejamos una suscripción huérfana en el
-       navegador: creería estar avisado y no llegaría nada. */
+  /* Si el servidor no la guarda, no dejamos una suscripción huérfana en el
+     navegador: creería estar avisado y no llegaría nada. Pero solo se cancela
+     la que acabamos de crear; si ya existía, la está usando el otro papel. */
+  if (!r.ok && reciennacida) {
     try { await suscripcion.unsubscribe(); } catch { /* da igual */ }
   }
   return r;
 }
 
+/* Se da de baja del servidor, pero NO se llama a unsubscribe(): la suscripción
+   es del navegador entero y la comparten el panel y la app de agente. Cancelarla
+   aquí dejaría al otro papel con un endpoint muerto. Sin fila en el servidor no
+   llega nada, que es lo que se pedía. */
 export async function desactivarPush(credenciales) {
   const suscripcion = await suscripcionActual();
   if (!suscripcion) return { ok: true };
-  await enviarAlServidor("baja", suscripcion, credenciales);
-  try { await suscripcion.unsubscribe(); } catch { /* da igual */ }
-  return { ok: true };
+  return enviarAlServidor("baja", suscripcion, credenciales);
+}
+
+/* Si este navegador está suscrito EN ESTE PAPEL. Lo dice el servidor: la
+   suscripción del navegador es única para todo el sitio y no distingue entre
+   la oficina y el agente. */
+export async function notificacionesActivas(credenciales) {
+  const suscripcion = await suscripcionActual();
+  if (!suscripcion || permisoActual() !== "granted") return false;
+  const r = await enviarAlServidor("estado", suscripcion, credenciales);
+  return r.ok && r.activa === true;
 }
 
 async function enviarAlServidor(accion, suscripcion, { pin, agenteId, token } = {}) {
@@ -94,7 +110,7 @@ async function enviarAlServidor(accion, suscripcion, { pin, agenteId, token } = 
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
-        accion: accion === "baja" ? "baja" : "alta",
+        accion,
         pin,
         agenteId,
         endpoint: suscripcion.endpoint,
@@ -103,7 +119,7 @@ async function enviarAlServidor(accion, suscripcion, { pin, agenteId, token } = 
     });
     const cuerpo = await r.json().catch(() => ({}));
     if (!r.ok) return { ok: false, error: cuerpo.error || `Error ${r.status}` };
-    return { ok: true };
+    return { ok: true, ...cuerpo };
   } catch {
     return { ok: false, error: "Sin conexión con el servidor" };
   }

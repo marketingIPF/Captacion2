@@ -1,6 +1,6 @@
 import { cabecerasBase, leerBody, pinValido, ipDe, limitado, anotarFallo } from "./_auth.js";
 import { tokenDe, verificarToken } from "./_jwt.js";
-import { guardarSuscripcion, borrarSuscripcion, pushDisponible } from "./_push.js";
+import { guardarSuscripcion, borrarSuscripcion, suscripcionRegistrada, pushDisponible } from "./_push.js";
 
 /* Alta y baja de suscripciones push.
    Atiende a los dos lados: el agente se identifica con el PIN y dice de qué
@@ -55,9 +55,21 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (body.accion === "estado") {
+      res.status(200).json({ activa: await suscripcionRegistrada(body.endpoint, tipo) });
+      return;
+    }
+
     if (body.accion === "baja") {
       await borrarSuscripcion(body.endpoint, tipo);
       res.status(200).json({ ok: true });
+      return;
+    }
+
+    /* Una acción desconocida se rechaza. Dejarla caer en "alta" convertiría un
+       error de escritura en un alta silenciosa. */
+    if (body.accion !== "alta") {
+      res.status(400).json({ error: "Acción desconocida" });
       return;
     }
 

@@ -7,6 +7,9 @@ import { repartir } from "../api/estado.js";
 const PIN_ACCESO = "agentes-2026";
 
 /* Lista real del equipo, para que el simulador se parezca a producción. */
+/* Suscripciones push simuladas: clave endpoint|tipo, igual que en producción. */
+const suscripcionesPush = new Set();
+
 const AGENTES = [
   {
     "id": "alejandro-garcia",
@@ -278,12 +281,27 @@ export function mockApi() {
         }
 
         if (ruta === "/api/push") {
-          /* El simulador acepta el alta sin más: probar el envío real requiere
-             un servicio de push de verdad, y eso solo tiene sentido contra
-             producción. Aquí se comprueba el botón, no la entrega. */
-          if (!body.suscripcion?.endpoint && body.accion !== "baja") {
+          /* Probar la ENTREGA requiere un servicio de push de verdad y solo
+             tiene sentido contra producción. Lo que sí se simula es el registro
+             por papel, que es de donde salió el fallo del botón: el navegador
+             tiene una sola suscripción y el estado lo decide el servidor. */
+          const tipo = body.pin ? "agente" : "oficina";
+          const clave = `${body.endpoint || body.suscripcion?.endpoint}|${tipo}`;
+
+          if (body.accion === "estado") {
+            return responder(res, 200, { activa: suscripcionesPush.has(clave) });
+          }
+          if (body.accion === "baja") {
+            suscripcionesPush.delete(clave);
+            return responder(res, 200, { ok: true });
+          }
+          if (body.accion !== "alta") {
+            return responder(res, 400, { error: "Acción desconocida" });
+          }
+          if (!body.suscripcion?.endpoint) {
             return responder(res, 400, { error: "Suscripción incompleta" });
           }
+          suscripcionesPush.add(clave);
           return responder(res, 200, { ok: true, simulado: true });
         }
 
