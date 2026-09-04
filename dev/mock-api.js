@@ -275,6 +275,19 @@ export function mockApi() {
           return responder(res, 200, { agentes: AGENTES, destinatario: "oficina@rk.test" });
         }
 
+        if (ruta === "/api/estado") {
+          if (body.pin !== PIN_ACCESO) return responder(res, 401, { error: "PIN incorrecto" });
+          const ids = Array.isArray(body.ids) ? body.ids : [];
+          const estados = {};
+          const eliminadas = [];
+          for (const id of ids) {
+            const f = fichas.get(id);
+            if (f && !f.eliminada_en) estados[id] = f.estado;
+            else eliminadas.push(id);
+          }
+          return responder(res, 200, { estados, eliminadas });
+        }
+
         if (ruta === "/api/fichas") {
           if (body.pin !== PIN_ACCESO) return responder(res, 401, { error: "PIN incorrecto" });
           const f = body.ficha;
@@ -319,7 +332,9 @@ export function mockApi() {
             return responder(res, 401, { error: "Falta el token de sesión" });
           }
           const movimiento = (f) => f.corregida_en || f.recibida_en;
-          const todas = [...fichas.values()].sort((a, b) => movimiento(b).localeCompare(movimiento(a)));
+          const todas = [...fichas.values()]
+            .filter((f) => !f.eliminada_en)
+            .sort((a, b) => movimiento(b).localeCompare(movimiento(a)));
 
           if (body.accion === "resumen") {
             const porEstado = ESTADOS.map((e) => ({ estado: e, n: todas.filter((f) => f.estado === e).length })).filter((x) => x.n);
@@ -360,6 +375,14 @@ export function mockApi() {
             return responder(res, 200, { ok: true, ficha: { id: f.id, estado: f.estado, nota_oficina: f.nota_oficina, actualizada_en: f.actualizada_en } });
           }
 
+          if (body.accion === "eliminar") {
+            const f = fichas.get(body.id);
+            if (!f || f.eliminada_en) return responder(res, 404, { error: "Ficha no encontrada o ya eliminada" });
+            f.eliminada_en = new Date().toISOString();
+            f.eliminada_por = "julia@inmobiliariapalanca.com";
+            return responder(res, 200, { ok: true, id: f.id });
+          }
+
           if (body.accion === "editar") {
             const f = fichas.get(body.id);
             if (!f) return responder(res, 404, { error: "Ficha no encontrada" });
@@ -394,7 +417,7 @@ export function mockApi() {
           /* Sin esto, una acción que el simulador no conozca caía en el
              listado y devolvía algo sin la forma esperada: un fallo real
              pasaba por respuesta válida. */
-          const CONOCIDAS = ["listar", "detalle", "actualizar", "editar", "resumen", undefined];
+          const CONOCIDAS = ["listar", "detalle", "actualizar", "editar", "eliminar", "resumen", undefined];
           if (!CONOCIDAS.includes(body.accion)) {
             return responder(res, 400, { error: `Acción desconocida: ${body.accion}` });
           }

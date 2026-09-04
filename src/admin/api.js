@@ -31,17 +31,6 @@ export async function llamar(accion, extra = {}) {
   return cuerpo;
 }
 
-/* Las fases del proceso, en el orden en que ocurren. "Baja" es la salida.
-   `fuerte` es la versión oscura del color, para cuando el texto va en blanco
-   encima: el naranja de marca sobre blanco solo da 3,4:1 y no pasa WCAG AA.
-   Las etiquetas usan fondo tintado + texto fuerte, al estilo de los badges de
-   Apple, que pasa AA de sobra en claro y en oscuro. */
-export const ESTADOS = [
-  { key: "nueva",          label: "Nueva",              color: "#cf731c", fuerte: "#a95a12", claro: "#f0a25a" },
-  { key: "agendada_fotos", label: "Agendada para fotos", color: "#af52de", fuerte: "#7a3aa8", claro: "#d9a2f0" },
-  { key: "pendiente",      label: "Pendiente",          color: "#007aff", fuerte: "#0058b8", claro: "#6fb4ff" },
-  { key: "publicada",      label: "Publicada",          color: "#248a3d", fuerte: "#1e7a34", claro: "#5fd77e" },
-  { key: "baja",           label: "Baja",               color: "#8e8e93", fuerte: "#6c6c70", claro: "#b0b0b5" },
-];
-
-export const estadoDe = (k) => ESTADOS.find((e) => e.key === k) || ESTADOS[0];
+/* Las fases y sus colores viven en lib/fases.js: aquí solo se reexportan con
+   el nombre que usa el panel. */
+export { FASES as ESTADOS, faseOPrimera as estadoDe } from "../lib/fases.js";

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, Pencil, Printer } from "lucide-react";
+import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, Pencil, Printer, Trash2 } from "lucide-react";
 import {
   bloquesFicha, bloqueComoTexto, textoFicha, tituloFicha, direccionCompleta, cifrasClave,
 } from "../lib/resumen.js";
@@ -14,13 +14,15 @@ import { FichaImprimible } from "./Imprimible.jsx";
 
 const soloDigitos = (t) => String(t || "").replace(/[^\d+]/g, "");
 
-export function FichaDetalle({ id, onCerrar, onActualizada }) {
+export function FichaDetalle({ id, onCerrar, onActualizada, onEliminada }) {
   const [ficha, setFicha] = useState(null);
   const [error, setError] = useState("");
   const [nota, setNota] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [editando, setEditando] = useState(false);
   const [imprimiendo, setImprimiendo] = useState(false);
+  const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
+  const [borrando, setBorrando] = useState(false);
   const panel = useRef(null);
   const { copiar, copiado, error: errorCopia } = useCopiar();
 
@@ -50,6 +52,19 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     window.print();
     setImprimiendo(false);
+  };
+
+  const eliminar = async () => {
+    if (borrando) return;
+    setBorrando(true);
+    try {
+      await llamar("eliminar", { id });
+      onEliminada?.(id);
+      onCerrar();
+    } catch (e) {
+      setError(e.message);
+      setBorrando(false);
+    }
   };
 
   const guardar = async (cambios) => {
@@ -451,6 +466,46 @@ export function FichaDetalle({ id, onCerrar, onActualizada }) {
                 etiqueta="Copiar la ficha completa"
                 className="w-full justify-center py-3 text-[14px]"
               />
+
+              {/* Borrar va al final y en dos pasos: es la única acción del
+                  panel que quita algo del móvil del agente. */}
+              <div className="pt-2 border-t border-ios-borde dark:border-ios-borde-osc">
+                {!confirmandoBorrado ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmandoBorrado(true)}
+                    className="flex items-center gap-1.5 text-[13px] font-semibold text-red-600 active:scale-95 transition"
+                  >
+                    <Trash2 size={15} aria-hidden="true" /> Eliminar esta captación
+                  </button>
+                ) : (
+                  <div className="rounded-xl bg-red-50 border border-red-200 p-3.5">
+                    <p className="text-[13px] text-red-800 leading-snug">
+                      Se eliminará del panel y también del historial de{" "}
+                      <strong>{ficha.agenteName}</strong> en su móvil, la próxima vez
+                      que abra la app.
+                    </p>
+                    <div className="flex gap-2 mt-2.5">
+                      <button
+                        type="button"
+                        onClick={eliminar}
+                        disabled={borrando}
+                        className="flex items-center justify-center gap-1.5 rounded-xl bg-red-600 text-white px-3.5 py-2 text-[13px] font-bold active:scale-95 transition disabled:opacity-60"
+                      >
+                        {borrando && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+                        Sí, eliminar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmandoBorrado(false)}
+                        className="rounded-xl border border-ios-borde dark:border-ios-borde-osc px-3.5 py-2 text-[13px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc active:scale-95 transition"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {ficha.actualizadaPor && (
                 <p className="text-[11.5px] text-ios-texto3 text-center">

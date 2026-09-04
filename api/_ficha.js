@@ -14,9 +14,9 @@ export function aNumero(v) {
 const texto = (v, max = 300) =>
   v === undefined || v === null || v === "" ? null : String(v).slice(0, max);
 
-/* Las fases del proceso, en orden. "baja" es la salida: la captación no vale.
-   El orden importa: es el que se pinta en el panel. */
-export const ESTADOS = ["nueva", "agendada_fotos", "pendiente", "publicada", "baja"];
+/* Las fases viven en src/lib/fases.js, que es la única definición: el
+   servidor valida contra la misma lista que pintan el panel y la app. */
+export { CLAVES_FASE as ESTADOS } from "../src/lib/fases.js";
 
 /* Valida y normaliza lo que manda el cliente. Devuelve { ok, fila } o { ok:false, error }. */
 export function fichaAFila(ficha) {

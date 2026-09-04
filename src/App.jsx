@@ -10,6 +10,7 @@ import { useToast } from "./hooks/useToast.jsx";
 import { useAutosave } from "./hooks/useAutosave.js";
 import { fichaVacia } from "./lib/ficha.js";
 import { enviarAlServidor, encolar, desencolar, pendientes, procesarCola } from "./lib/cola.js";
+import { consultarEstados } from "./lib/estados.js";
 import { K, load, save, remove, loadCacheAgentes, saveCacheAgentes, podar } from "./lib/storage.js";
 
 export default function App() {
@@ -74,6 +75,47 @@ export default function App() {
     },
     [pin, toast]
   );
+
+  /* ---------------- Fases: qué ha hecho la oficina ----------------
+     El historial mostraría "recibida en la oficina" para siempre si no se
+     preguntara. Se consulta al abrir el historial, al arrancar y al volver a
+     la app; no hace falta más para algo que cambia unas pocas veces al día. */
+  const sincronizarFases = useCallback(async () => {
+    const ids = sent.filter((f) => f.envio?.estado === "enviada").map((f) => f.id);
+    if (!pin || !ids.length) return;
+
+    const r = await consultarEstados(pin, ids);
+    if (!r.ok) return;
+
+    if (r.eliminadas.length) {
+      setSent((p) => p.filter((f) => !r.eliminadas.includes(f.id)));
+      toast(
+        r.eliminadas.length === 1
+          ? "La oficina ha eliminado una ficha de tu historial"
+          : `La oficina ha eliminado ${r.eliminadas.length} fichas de tu historial`,
+        "info",
+        6000
+      );
+    }
+
+    setSent((p) =>
+      p.map((f) => (r.estados[f.id] && r.estados[f.id] !== f.fase ? { ...f, fase: r.estados[f.id] } : f))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin, sent, toast]);
+
+  useEffect(() => {
+    if (tab !== "historial") return;
+    sincronizarFases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, pin]);
+
+  useEffect(() => {
+    const alVolver = () => document.visibilityState === "visible" && sincronizarFases();
+    document.addEventListener("visibilitychange", alVolver);
+    return () => document.removeEventListener("visibilitychange", alVolver);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
 
   /* Al arrancar y cada vez que vuelve la red. */
   useEffect(() => {
@@ -271,6 +313,7 @@ export default function App() {
           drafts={drafts}
           sent={sent}
           enCola={enCola}
+          onSincronizarFases={sincronizarFases}
           onOpenDraft={openDraft}
           onReintentar={reintentar}
           onSincronizar={() => vaciarCola(false)}

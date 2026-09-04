@@ -3,12 +3,20 @@ import { Home, Trash2, Send, Pencil, Loader2, AlertCircle, Search, CloudOff, Ref
 import { TIPOS_INMUEBLE } from "../data/tipos.js";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
 import { resumenFicha } from "../lib/ficha.js";
+import { faseDe } from "../lib/estados.js";
 
-export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar, onSincronizar, onDelete }) {
+export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar, onSincronizar, onSincronizarFases, onDelete }) {
   const [tab, setTab] = useState("sent");
   const [q, setQ] = useState("");
   const [reintentando, setReintentando] = useState(null);
   const [sincronizando, setSincronizando] = useState(false);
+  const [actualizando, setActualizando] = useState(false);
+
+  const actualizarFases = async () => {
+    setActualizando(true);
+    await onSincronizarFases?.();
+    setActualizando(false);
+  };
   const [confirmar, setConfirmar] = useState(null);
 
   const base = tab === "sent" ? sent : drafts;
@@ -79,6 +87,22 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
           ))}
         </div>
 
+        {tab === "sent" && sent.length > 0 && (
+          <button
+            type="button"
+            onClick={actualizarFases}
+            disabled={actualizando}
+            className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-ios-borde text-[12.5px] font-semibold text-ios-texto2 active:scale-95 transition disabled:opacity-60"
+          >
+            {actualizando ? (
+              <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <RefreshCw size={14} aria-hidden="true" />
+            )}
+            Actualizar el estado en la oficina
+          </button>
+        )}
+
         {base.length > 3 && (
           <div className="relative mt-3">
             <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ios-texto3" aria-hidden="true" />
@@ -133,11 +157,24 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
                     </div>
                   )}
                   {!esBorrador && estadoEnvio === "enviada" && (
-                    <div className="text-[11.5px] text-green-700 font-semibold flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 size={12} aria-hidden="true" />
-                      {f.envio?.envios > 1
-                        ? `Corregida y reenviada · ${f.envio.envios} envíos`
-                        : "Recibida en la oficina"}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      {/* La fase la manda la oficina; mientras no se sepa, se
+                          dice lo único que consta: que llegó. */}
+                      {faseDe(f.fase) ? (
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                          style={{ background: faseDe(f.fase).fondo, color: faseDe(f.fase).color }}
+                        >
+                          {faseDe(f.fase).label}
+                        </span>
+                      ) : (
+                        <span className="text-[11.5px] text-green-700 font-semibold flex items-center gap-1">
+                          <CheckCircle2 size={12} aria-hidden="true" /> Recibida en la oficina
+                        </span>
+                      )}
+                      {f.envio?.envios > 1 && (
+                        <span className="text-[11px] text-ios-texto3">· {f.envio.envios} envíos</span>
+                      )}
                     </div>
                   )}
                 </div>

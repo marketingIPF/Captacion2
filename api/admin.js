@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     if (accion === "detalle") return await detalle(sql, body, res);
     if (accion === "actualizar") return await actualizar(sql, body, res, usuario);
     if (accion === "editar") return await editar(sql, body, res, usuario);
+    if (accion === "eliminar") return await eliminar(sql, body, res, usuario);
     if (accion === "resumen") return await resumen(sql, res, usuario);
     res.status(400).json({ error: "Acción desconocida" });
   } catch (err) {
@@ -49,7 +50,8 @@ export async function listar(sql, body, res) {
     select id, recibida_en, corregida_en, envios, agente_id, agente_nombre,
            estado, operacion, tipo, referencia, direccion, numero, poblacion, precio
     from fichas
-    where (${estado}::text is null or estado = ${estado})
+    where eliminada_en is null
+      and (${estado}::text is null or estado = ${estado})
       and (${agente}::text is null or agente_id = ${agente})
       and (${patron}::text is null or
            direccion ilike ${patron} or poblacion ilike ${patron} or
@@ -63,7 +65,8 @@ export async function listar(sql, body, res) {
 
   const [{ total }] = await sql`
     select count(*)::int as total from fichas
-    where (${estado}::text is null or estado = ${estado})
+    where eliminada_en is null
+      and (${estado}::text is null or estado = ${estado})
       and (${agente}::text is null or agente_id = ${agente})
       and (${patron}::text is null or
            direccion ilike ${patron} or poblacion ilike ${patron} or
@@ -75,7 +78,7 @@ export async function listar(sql, body, res) {
 
 export async function detalle(sql, body, res) {
   if (!body.id) return res.status(400).json({ error: "Falta el identificador" });
-  const [row] = await sql`select * from fichas where id = ${body.id}`;
+  const [row] = await sql`select * from fichas where id = ${body.id} and eliminada_en is null`;
   if (!row) return res.status(404).json({ error: "Ficha no encontrada" });
   res.status(200).json({ ficha: filaAFicha(row) });
 }
@@ -110,7 +113,7 @@ export async function editar(sql, body, res, usuario) {
     return res.status(400).json({ error: "Faltan los datos de la ficha" });
   }
 
-  const [previa] = await sql`select * from fichas where id = ${body.id}`;
+  const [previa] = await sql`select * from fichas where id = ${body.id} and eliminada_en is null`;
   if (!previa) return res.status(404).json({ error: "Ficha no encontrada" });
 
   const anterior = filaAFicha(previa);
@@ -145,11 +148,32 @@ export async function editar(sql, body, res, usuario) {
   res.status(200).json({ ok: true, ficha: filaAFicha(row) });
 }
 
+/* Borrado reversible. La ficha desaparece del panel y, en cuanto el móvil del
+   agente sincronice, también de su historial. La fila se queda con la marca:
+   si la oficina se equivoca, deshacerlo es un UPDATE y no una pérdida. */
+export async function eliminar(sql, body, res, usuario) {
+  if (!body.id) return res.status(400).json({ error: "Falta el identificador" });
+
+  const [row] = await sql`
+    update fichas
+       set eliminada_en = now(), eliminada_por = ${usuario?.email || null}
+     where id = ${body.id} and eliminada_en is null
+    returning id, direccion, numero
+  `;
+  if (!row) return res.status(404).json({ error: "Ficha no encontrada o ya eliminada" });
+
+  console.warn(`Ficha eliminada por ${usuario?.email}: ${(row.direccion + " " + (row.numero || "")).trim()}`);
+  res.status(200).json({ ok: true, id: row.id });
+}
+
 export async function resumen(sql, res, usuario) {
-  const porEstado = await sql`select estado, count(*)::int as n from fichas group by estado`;
+  const porEstado = await sql`
+    select estado, count(*)::int as n from fichas where eliminada_en is null group by estado
+  `;
   const porAgente = await sql`
     select agente_id, agente_nombre, count(*)::int as n
-    from fichas group by agente_id, agente_nombre order by n desc limit 20
+    from fichas where eliminada_en is null
+    group by agente_id, agente_nombre order by n desc limit 20
   `;
   /* El precio medio se calcula SOLO sobre ventas: promediar un chalet de
      545.000 € con un alquiler de 1.850 €/mes da un número sin sentido. */
@@ -158,7 +182,7 @@ export async function resumen(sql, res, usuario) {
            count(*) filter (where recibida_en > now() - interval '30 days')::int as ultimos30,
            count(*) filter (where operacion = 'Venta')::int as ventas,
            avg(precio) filter (where operacion = 'Venta')::numeric(12,2) as precio_medio_venta
-    from fichas
+    from fichas where eliminada_en is null
   `;
   res.status(200).json({ porEstado, porAgente, totales, usuario });
 }

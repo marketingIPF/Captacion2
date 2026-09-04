@@ -383,6 +383,7 @@ export function AdminApp() {
         <FichaDetalle
           id={abierta}
           onCerrar={() => setAbierta(null)}
+          onEliminada={() => cargar()}
           onActualizada={(f) => {
             if (f.recargar) cargar();
             else setFichas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: f.estado } : x)));

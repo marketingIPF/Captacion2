@@ -34,6 +34,11 @@ export default async function handler(req, res) {
            invertidas en este comentario: cerrarían la plantilla de SQL.) */
         corregida_en = now(),
         envios = fichas.envios + 1,
+        /* Si la oficina la había borrado y el agente la reenvía, vuelve. La
+           alternativa sería guardar su corrección en una fila oculta que nadie
+           llegaría a ver nunca: mejor que reaparezca y se vuelva a borrar. */
+        eliminada_en = null,
+        eliminada_por = null,
         agente_id = excluded.agente_id,
         agente_nombre = excluded.agente_nombre,
         operacion = excluded.operacion,
