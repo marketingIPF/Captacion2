@@ -48,7 +48,8 @@ export async function listar(sql, body, res) {
 
   const filas = await sql`
     select id, recibida_en, corregida_en, envios, agente_id, agente_nombre,
-           estado, operacion, tipo, referencia, direccion, numero, poblacion, precio
+           estado, operacion, tipo, referencia, direccion, numero, poblacion,
+           precio, nota_oficina
     from fichas
     where eliminada_en is null
       and (${estado}::text is null or estado = ${estado})

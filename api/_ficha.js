@@ -74,6 +74,9 @@ export const filaAFicha = (row) => ({
   actualizada: row.actualizada_en,
   corregida: row.corregida_en || null,
   envios: row.envios ?? 1,
+  /* Para que el listado pueda distinguir a simple vista qué inmuebles ya
+     tienen anotación, sin traerse el texto entero de cada uno. */
+  tieneNota: Boolean(row.nota_oficina && String(row.nota_oficina).trim()),
   agenteId: row.agente_id,
   agenteName: row.agente_nombre,
   estado: row.estado,

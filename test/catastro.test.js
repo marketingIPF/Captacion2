@@ -144,3 +144,26 @@ test("la dirección se compone en una línea, como la piden los portales", async
     "Precio: 385.000\nAño: 1940"
   );
 });
+
+test("una captación se llama por su referencia, y por la calle solo si no la tiene", async () => {
+  const { nombreDeFicha, subtituloDeFicha, tituloFicha } = await import("../src/lib/resumen.js");
+
+  /* Ficha completa, como la del detalle o el historial del agente. */
+  const con = { data: { referencia: "#05619", direccion: "Calle Colón", numero: "26", tipo: "Piso" } };
+  assert.equal(nombreDeFicha(con), "#05619");
+  assert.equal(subtituloDeFicha(con), "Calle Colón 26", "la dirección pasa debajo");
+  assert.equal(tituloFicha(con), "Piso · #05619");
+
+  const sin = { data: { direccion: "Calle Colón", numero: "26", tipo: "Piso" } };
+  assert.equal(nombreDeFicha(sin), "Calle Colón 26");
+  assert.equal(subtituloDeFicha(sin), null, "no se repite la dirección debajo de sí misma");
+
+  /* Fila reducida del listado, que trae los campos sueltos. */
+  assert.equal(nombreDeFicha({ referencia: "#05620", direccion: "Camí de Vera 88" }), "#05620");
+  assert.equal(subtituloDeFicha({ referencia: "#05620", direccion: "Camí de Vera 88" }), "Camí de Vera 88");
+  assert.equal(nombreDeFicha({ direccion: "Camí de Vera 88" }), "Camí de Vera 88");
+
+  /* Sin nada, algo hay que poner. */
+  assert.equal(nombreDeFicha({ data: {} }), "Sin referencia");
+  assert.equal(nombreDeFicha({ referencia: "   " }), "Sin referencia", "una referencia en blanco no cuenta");
+});

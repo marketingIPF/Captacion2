@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
+import { nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
 import { llamar, ESTADOS, estadoDe } from "./api.js";
 import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl } from "./auth.js";
 import { FichaDetalle } from "./FichaDetalle.jsx";
@@ -22,6 +23,14 @@ export function AdminApp() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [abierta, setAbierta] = useState(null);
+  /* Al abrir desde el botón de anotaciones, la ficha va directa a la nota en
+     vez de obligar a buscarla entre ocho secciones. */
+  const [enfocar, setEnfocar] = useState(null);
+
+  const abrirFicha = (id, foco = null) => {
+    setAbierta(id);
+    setEnfocar(foco);
+  };
   const [paraImprimir, setParaImprimir] = useState(null);
   const [preparandoImpresion, setPreparandoImpresion] = useState(false);
 
@@ -288,6 +297,9 @@ export function AdminApp() {
                   <th scope="col" className="px-4 py-2.5 font-bold hidden sm:table-cell">Última entrada</th>
                   <th scope="col" className="px-4 py-2.5 font-bold text-right">Precio</th>
                   <th scope="col" className="px-4 py-2.5 font-bold">Estado</th>
+                  <th scope="col" className="px-2 py-2.5 font-bold w-10">
+                    <span className="sr-only">Anotaciones</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ios-borde dark:divide-ios-borde-osc">
@@ -296,16 +308,20 @@ export function AdminApp() {
                   return (
                     <tr
                       key={f.id}
-                      onClick={() => setAbierta(f.id)}
+                      onClick={() => abrirFicha(f.id)}
                       tabIndex={0}
                       role="button"
-                      onKeyDown={(ev) => (ev.key === "Enter" || ev.key === " ") && (ev.preventDefault(), setAbierta(f.id))}
+                      onKeyDown={(ev) => (ev.key === "Enter" || ev.key === " ") && (ev.preventDefault(), abrirFicha(f.id))}
                       className="cursor-pointer hover:bg-ios-fondo dark:hover:bg-ios-elevada-osc/40 focus:bg-ios-fondo dark:focus:bg-ios-elevada-osc/40 outline-none transition"
                     >
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-ios-texto dark:text-ios-texto-osc text-[14px]">{f.direccion || "Sin dirección"}</div>
+                        {/* La agencia identifica cada inmueble por su
+                            referencia; la dirección pasa a la segunda línea. */}
+                        <div className="font-semibold text-ios-texto dark:text-ios-texto-osc text-[14px] tabular-nums">
+                          {nombreDeFicha(f)}
+                        </div>
                         <div className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc">
-                          {[f.poblacion, f.tipo, f.operacion].filter(Boolean).join(" · ")}
+                          {[subtituloDeFicha(f), f.poblacion, f.tipo, f.operacion].filter(Boolean).join(" · ")}
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
@@ -343,6 +359,21 @@ export function AdminApp() {
                         >
                           {e.label}
                         </span>
+                      </td>
+                      <td className="px-2 py-3">
+                        <button
+                          type="button"
+                          onClick={(ev) => { ev.stopPropagation(); abrirFicha(f.id, "nota"); }}
+                          aria-label={f.tieneNota ? `Ver la anotación de ${nombreDeFicha(f)}` : `Añadir una anotación a ${nombreDeFicha(f)}`}
+                          title={f.tieneNota ? "Ver la anotación" : "Añadir una anotación"}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition active:scale-90 ${
+                            f.tieneNota
+                              ? "bg-rk-soft text-rk-naranja"
+                              : "text-ios-texto3 hover:bg-ios-fondo dark:hover:bg-ios-elevada-osc"
+                          }`}
+                        >
+                          <StickyNote size={15} />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -382,7 +413,8 @@ export function AdminApp() {
       {abierta && (
         <FichaDetalle
           id={abierta}
-          onCerrar={() => setAbierta(null)}
+          enfocar={enfocar}
+          onCerrar={() => { setAbierta(null); setEnfocar(null); }}
           onEliminada={() => cargar()}
           onActualizada={(f) => {
             if (f.recargar) cargar();

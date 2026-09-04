@@ -14,7 +14,7 @@ import { FichaImprimible } from "./Imprimible.jsx";
 
 const soloDigitos = (t) => String(t || "").replace(/[^\d+]/g, "");
 
-export function FichaDetalle({ id, onCerrar, onActualizada, onEliminada }) {
+export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada }) {
   const [ficha, setFicha] = useState(null);
   const [error, setError] = useState("");
   const [nota, setNota] = useState("");
@@ -24,6 +24,7 @@ export function FichaDetalle({ id, onCerrar, onActualizada, onEliminada }) {
   const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
   const [borrando, setBorrando] = useState(false);
   const panel = useRef(null);
+  const campoNota = useRef(null);
   const { copiar, copiado, error: errorCopia } = useCopiar();
 
   useEffect(() => {
@@ -37,6 +38,15 @@ export function FichaDetalle({ id, onCerrar, onActualizada, onEliminada }) {
       .catch((e) => vivo && setError(e.message));
     return () => { vivo = false; };
   }, [id]);
+
+  /* Si se ha entrado por el botón de anotaciones, se va derecho a la nota:
+     está por debajo de varias secciones y buscarla a mano cada vez sería el
+     trabajo que este botón viene a evitar. */
+  useEffect(() => {
+    if (!ficha || enfocar !== "nota" || !campoNota.current) return;
+    campoNota.current.scrollIntoView({ block: "center", behavior: "smooth" });
+    campoNota.current.focus({ preventScroll: true });
+  }, [ficha, enfocar]);
 
   useEffect(() => {
     panel.current?.focus();
@@ -421,6 +431,7 @@ export function FichaDetalle({ id, onCerrar, onActualizada, onEliminada }) {
                 </div>
                 <textarea
                   id="nota"
+                  ref={campoNota}
                   value={nota}
                   onChange={(e) => setNota(e.target.value)}
                   onBlur={() => nota !== (ficha.notaOficina || "") && guardar({ nota })}

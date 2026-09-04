@@ -1,5 +1,5 @@
 import { SECCIONES } from "../data/secciones.js";
-import { camposAplicables, resumenFicha } from "./ficha.js";
+import { camposAplicables } from "./ficha.js";
 import { fmtFecha, fmtPrecio, fmtNumero } from "./format.js";
 
 const valorLegible = (f, v) => {
@@ -76,9 +76,33 @@ export function bloqueComoTexto(bloque) {
   return bloque.filas.map(([k, v]) => `${k}: ${v}`).join("\n");
 }
 
+/* Cómo se llama una captación. La agencia la identifica por su referencia
+   (#05619), así que esa manda; la dirección solo entra cuando aún no la tiene.
+   Acepta tanto una ficha completa (con `data`) como la fila reducida del
+   listado, que trae los campos sueltos. */
+const refDe = (f) => String(f?.data?.referencia ?? f?.referencia ?? "").trim();
+
+/* Se compone a mano en vez de usar resumenFicha(), que devuelve su propio
+   "Sin dirección" y taparía el respaldo de aquí. */
+const direccionDe = (f) =>
+  [f?.data?.direccion ?? f?.direccion, f?.data?.numero ?? f?.numero]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+export function nombreDeFicha(f) {
+  return refDe(f) || direccionDe(f) || "Sin referencia";
+}
+
+/* La dirección cuando el nombre ya la ha desplazado; null si el nombre ES la
+   dirección, para no repetirla debajo. */
+export function subtituloDeFicha(f) {
+  return refDe(f) ? direccionDe(f) || null : null;
+}
+
 export function tituloFicha(ficha) {
   const d = ficha.data;
-  return `${d.tipo || "Inmueble"} · ${resumenFicha(ficha)}`;
+  return `${d.tipo || "Inmueble"} · ${nombreDeFicha(ficha)}`;
 }
 
 export function textoFicha(ficha) {

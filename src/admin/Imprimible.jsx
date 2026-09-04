@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { bloquesFicha, direccionCompleta, cifrasClave, tituloFicha } from "../lib/resumen.js";
+import { bloquesFicha, direccionCompleta, cifrasClave, tituloFicha, nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
 import { estadoDe } from "./api.js";
 
@@ -82,7 +82,12 @@ export function ListadoImprimible({ fichas, descripcionFiltro, total }) {
               <td style={{ ...celda, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
                 {f.referencia || "—"}
               </td>
-              <td style={{ ...celda, fontWeight: 600 }}>{f.direccion || "Sin dirección"}</td>
+              <td style={{ ...celda, fontWeight: 600 }}>
+                {nombreDeFicha(f)}
+                {subtituloDeFicha(f) && (
+                  <div style={{ fontWeight: 400, color: "#555", fontSize: "7.5pt" }}>{subtituloDeFicha(f)}</div>
+                )}
+              </td>
               <td style={celda}>{f.poblacion || "—"}</td>
               <td style={celda}>{f.tipo || "—"}</td>
               <td style={celda}>{f.operacion || "—"}</td>

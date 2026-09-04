@@ -247,6 +247,7 @@ const resumenDe = (f) => ({
   recibida: f.recibida_en,
   corregida: f.corregida_en || null,
   envios: f.envios ?? 1,
+  tieneNota: Boolean(f.nota_oficina && String(f.nota_oficina).trim()),
   agenteId: f.agente_id,
   agenteName: f.agente_nombre,
   estado: f.estado,

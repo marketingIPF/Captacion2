@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Home, Trash2, Send, Pencil, Loader2, AlertCircle, Search, CloudOff, RefreshCw, CheckCircle2, PencilLine } from "lucide-react";
 import { TIPOS_INMUEBLE } from "../data/tipos.js";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
-import { resumenFicha } from "../lib/ficha.js";
+import { nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
 import { faseDe } from "../lib/estados.js";
 
 export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar, onSincronizar, onSincronizarFases, onDelete }) {
@@ -25,7 +25,7 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
     const orden = base.slice().reverse();
     if (!t) return orden;
     return orden.filter((f) =>
-      [resumenFicha(f), f.agenteName, f.data.poblacion, f.data.tipo, f.data.referencia]
+      [nombreDeFicha(f), subtituloDeFicha(f), f.agenteName, f.data.poblacion, f.data.tipo]
         .filter(Boolean)
         .some((s) => String(s).toLowerCase().includes(t))
     );
@@ -139,7 +139,10 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
                   <Icon size={20} className="text-rk-naranja" aria-hidden="true" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-ios-texto truncate">{resumenFicha(f)}</div>
+                  <div className="font-semibold text-ios-texto truncate tabular-nums">{nombreDeFicha(f)}</div>
+                  {subtituloDeFicha(f) && (
+                    <div className="text-[12.5px] text-ios-texto2 truncate">{subtituloDeFicha(f)}</div>
+                  )}
                   <div className="text-[13px] text-ios-texto2 truncate">
                     {f.agenteName} · {fmtFecha(f.fecha)}
                   </div>
