@@ -158,11 +158,23 @@ export async function notificar({ tipo, destinatario, titulo, cuerpo, url, etiqu
    después de responder. Se le da un margen corto y se sigue. */
 export async function notificarSinBloquear(aviso, msMaximo = 3000) {
   try {
-    await Promise.race([
+    const r = await Promise.race([
       notificar(aviso),
       new Promise((r) => setTimeout(() => r({ enviadas: 0, agotado: true }), msMaximo)),
     ]);
+    /* Que no llegue un aviso no puede ser invisible: sin esta línea, "no me
+       salen las notificaciones" no se distingue de "nadie está suscrito", y
+       averiguar cuál de las dos cosas es cuesta horas. No se registra a quién
+       se avisa, solo el papel y cuántos. */
+    if (!r.enviadas) {
+      console.warn(
+        `Aviso "${aviso.titulo}" no llegó a nadie (${aviso.tipo}` +
+          `${r.agotado ? ", se agotó el tiempo" : ", sin suscripciones"})`
+      );
+    }
+    return r;
   } catch (err) {
     console.warn("Aviso push no enviado", err?.message);
+    return { enviadas: 0, error: true };
   }
 }

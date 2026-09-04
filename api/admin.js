@@ -115,7 +115,7 @@ export async function actualizar(sql, body, res, usuario) {
   /* El agente quiere saber cómo va lo suyo. Se avisa solo cuando la fase
      cambia de verdad: guardar una nota no es noticia para él. */
   if (body.estado && body.estado !== previa.estado) {
-    await notificarSinBloquear({
+    const aviso = await notificarSinBloquear({
       tipo: "agente",
       destinatario: previa.agente_id,
       titulo: faseDe(body.estado)?.label || "Captación actualizada",
@@ -123,6 +123,7 @@ export async function actualizar(sql, body, res, usuario) {
       url: "/",
       etiqueta: `ficha-${row.id}`,
     });
+    console.log(`Fase ${previa.estado} → ${body.estado}: ${aviso.enviadas} aviso(s) al agente`);
   }
 
   res.status(200).json({ ok: true, ficha: row });
