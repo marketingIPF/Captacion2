@@ -119,8 +119,11 @@ export const filaAFicha = (row) => ({
   agenteName: row.agente_nombre,
   estado: row.estado,
   /* 'oficina' = la teclearon en el panel, no llegó de un móvil. Justifica
-     que le falten datos. */
+     que le falten datos, y quién lo hizo se dice con nombre y apellidos: en
+     el panel entra más de una persona. */
   origen: row.origen || "agente",
+  creadaPor: row.creada_por || null,
+  creadaPorNombre: row.creada_por_nombre || null,
   notaOficina: row.nota_oficina,
   actualizadaPor: row.actualizada_por || null,
   data: row.datos,
@@ -139,8 +142,11 @@ export const filaAResumen = (row) => ({
   agenteName: row.agente_nombre,
   estado: row.estado,
   /* 'oficina' = la teclearon en el panel, no llegó de un móvil. Justifica
-     que le falten datos. */
+     que le falten datos, y quién lo hizo se dice con nombre y apellidos: en
+     el panel entra más de una persona. */
   origen: row.origen || "agente",
+  creadaPor: row.creada_por || null,
+  creadaPorNombre: row.creada_por_nombre || null,
   operacion: row.operacion,
   tipo: row.tipo,
   referencia: row.referencia,

@@ -53,8 +53,8 @@ export async function listar(sql, body, res) {
 
   const filas = await sql`
     select id, recibida_en, corregida_en, envios, agente_id, agente_nombre,
-           estado, origen, operacion, tipo, referencia, direccion, numero,
-           poblacion, precio, nota_oficina
+           estado, origen, creada_por, creada_por_nombre, operacion, tipo,
+           referencia, direccion, numero, poblacion, precio, nota_oficina
     from fichas
     where eliminada_en is null
       and (${estado}::text is null or estado = ${estado})
@@ -222,13 +222,15 @@ export async function crear(sql, body, res, usuario) {
     insert into fichas (
       id, creada_en, recibida_en, agente_id, agente_nombre, operacion, tipo,
       referencia, direccion, numero, poblacion, provincia, cp, precio,
-      datos, propietarios, estado, origen, envios, actualizada_por
+      datos, propietarios, estado, origen, envios, actualizada_por,
+      creada_por, creada_por_nombre
     ) values (
       ${fila.id}, ${recibida}, ${recibida}, ${fila.agente_id}, ${fila.agente_nombre},
       ${fila.operacion}, ${fila.tipo}, ${fila.referencia}, ${fila.direccion},
       ${fila.numero}, ${fila.poblacion}, ${fila.provincia}, ${fila.cp}, ${fila.precio},
       ${JSON.stringify(fila.datos)}, ${JSON.stringify(fila.propietarios)},
-      ${estado}, 'oficina', 0, ${usuario?.email || null}
+      ${estado}, 'oficina', 0, ${usuario?.email || null},
+      ${usuario?.email || null}, ${usuario?.nombre || null}
     )
     returning *
   `;

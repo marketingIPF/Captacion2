@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff, Plus } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
-import { fmtFecha, fmtPrecio } from "../lib/format.js";
+import { fmtFecha, fmtPrecio, nombreCorto } from "../lib/format.js";
 import { nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
 import { llamar, ESTADOS, estadoDe } from "./api.js";
 import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl, tokenDeSesion } from "./auth.js";
@@ -417,10 +417,18 @@ export function AdminApp() {
                         )}
                         {/* Que la teclearon aquí explica que le falten datos.
                             Sin esta marca, una ficha antigua a medias parece un
-                            fallo de la app o un agente que no la rellenó. */}
+                            fallo de la app o un agente que no la rellenó. Y se
+                            dice QUIÉN: en el panel entra más de una persona.
+                            El nombre completo va en el title, porque en esta
+                            columna solo cabe el de pila. */}
                         {f.origen === "oficina" && (
-                          <div className="text-[11px] text-ios-texto3 mt-0.5">
-                            Añadida en oficina
+                          <div
+                            className="text-[11px] text-ios-texto3 mt-0.5"
+                            title={f.creadaPorNombre || f.creadaPor || undefined}
+                          >
+                            {nombreCorto(f.creadaPorNombre || f.creadaPor)
+                              ? `Añadida manualmente por ${nombreCorto(f.creadaPorNombre || f.creadaPor)}`
+                              : "Añadida manualmente"}
                           </div>
                         )}
                       </td>

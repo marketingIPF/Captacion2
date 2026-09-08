@@ -49,6 +49,11 @@ create table if not exists fichas (
   nota_oficina    text,
   actualizada_por text,          -- email de quien lo tocó desde el panel
 
+  -- Quién la tecleó en el panel, cuando origen = 'oficina'. Aparte de
+  -- actualizada_por, que se sobrescribe en cada edición.
+  creada_por        text,
+  creada_por_nombre text,
+
   -- La ficha íntegra. Así añadir un campo al formulario no obliga a migrar.
   datos           jsonb not null,
   propietarios    jsonb not null default '[]'::jsonb

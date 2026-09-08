@@ -150,8 +150,12 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
                       <span aria-hidden="true">·</span>
                       <ValorCopiable valor={fmtFecha(ficha.recibida)} clave="fecha" copiar={copiar} copiado={copiado} etiqueta="la fecha" className="whitespace-nowrap" />
                       {ficha.origen === "oficina" && (
+                        /* Aquí sí cabe el nombre completo: es la cabecera de la
+                           ficha, no una celda de tabla. */
                         <span className="rounded-md bg-ios-fondo dark:bg-ios-elevada-osc px-1.5 py-0.5 text-[11px] font-bold text-ios-texto2 dark:text-ios-texto2-osc whitespace-nowrap">
-                          Añadida en oficina
+                          {ficha.creadaPorNombre || ficha.creadaPor
+                            ? `Añadida manualmente por ${ficha.creadaPorNombre || ficha.creadaPor}`
+                            : "Añadida manualmente"}
                         </span>
                       )}
                       {ficha.corregida && (

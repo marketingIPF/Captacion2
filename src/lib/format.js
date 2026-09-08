@@ -27,3 +27,18 @@ export const rutaAvatar = (id) => (id ? `/avatars/${id}.webp` : null);
 
 export const iniciales = (nombre = "") =>
   nombre.split(" ").filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+/* Nombre corto de quien usa el panel, para caber en una celda del listado.
+
+   La sesión trae el nombre de Google cuando existe y, si no, el propio correo.
+   De un nombre se coge el primero ("Julia Pérez" → "Julia") y de un correo la
+   parte de delante de la arroba ("info@..." → "Info"), porque escribir
+   "Añadida manualmente por info@inmobiliariapalanca.com" en una columna no
+   cabe ni se lee. */
+export function nombreCorto(nombreOEmail) {
+  const v = String(nombreOEmail ?? "").trim();
+  if (!v) return "";
+  const base = v.includes("@") ? v.split("@")[0].replace(/[._-]+/g, " ").trim() : v;
+  const primero = base.split(/\s+/)[0] || "";
+  return primero ? primero[0].toUpperCase() + primero.slice(1) : "";
+}
