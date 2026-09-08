@@ -35,9 +35,12 @@ create table if not exists fichas (
   envios          int not null default 1,
 
   -- Fases del proceso, en orden. "baja" es la salida: la captación no vale.
+  -- Vendido y Alquilado son excluyentes segun la operacion, pero eso no se
+  -- fuerza aqui: la operacion se puede corregir despues de marcar la fase.
   estado          text not null default 'nueva'
                   check (estado in ('nueva', 'agendada_fotos', 'pendiente',
-                                    'publicada', 'baja')),
+                                    'publicada', 'reservado', 'vendido',
+                                    'alquilado', 'baja')),
   nota_oficina    text,
   actualizada_por text,          -- email de quien lo tocó desde el panel
 

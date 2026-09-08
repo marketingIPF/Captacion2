@@ -166,7 +166,10 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
                       {faseDe(f.fase) ? (
                         <span
                           className="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                          style={{ background: faseDe(f.fase).fondo, color: faseDe(f.fase).color }}
+                          /* El texto va en el tono `fuerte`, no en el de la
+                             fase: sobre el tinte del fondo, el tono normal se
+                             quedaba en 3:1 y no llega al mínimo legible. */
+                          style={{ background: faseDe(f.fase).fondo, color: faseDe(f.fase).fuerte }}
                         >
                           {faseDe(f.fase).label}
                         </span>

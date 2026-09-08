@@ -3,6 +3,7 @@
    Los datos viven en memoria y se pierden al reiniciar. */
 import { randomUUID } from "node:crypto";
 import { repartir } from "../api/estado.js";
+import { CLAVES_FASE } from "../src/lib/fases.js";
 
 const PIN_ACCESO = "agentes-2026";
 
@@ -176,7 +177,10 @@ const AGENTES = [
 const POBLACIONES = ["Valencia", "Alboraya", "Meliana", "Foios", "Almàssera", "Tavernes Blanques"];
 const CALLES = ["Avenida del Puerto", "Calle Colón", "Camí del Mar", "Plaza del Ayuntamiento", "Calle Sagunto", "Avenida Blasco Ibáñez"];
 const TIPOS = ["Piso", "Ático", "Casa / Chalet", "Local", "Garaje", "Terreno"];
-const ESTADOS = ["nueva", "agendada_fotos", "pendiente", "publicada", "baja"];
+/* De la definición única, no copiadas: cuando se añadieron Reservado, Vendido
+   y Alquilado, esta lista se quedó con las cinco de antes y el simulador
+   generaba fichas que no cubrían las fases nuevas. */
+const ESTADOS = CLAVES_FASE;
 
 const fichas = new Map();
 

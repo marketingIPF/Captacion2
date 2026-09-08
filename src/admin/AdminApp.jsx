@@ -11,6 +11,11 @@ import { FichaDetalle } from "./FichaDetalle.jsx";
 import { ListadoImprimible } from "./Imprimible.jsx";
 import { AdminLogin } from "./AdminLogin.jsx";
 
+/* "Todas" no es una fase, así que no sale de FASES. Antes llevaba a mano el
+   tono de "Nueva", y cuando ese cambió se quedó con el viejo sin que se notara.
+   Es la tinta de marca y no depende de ninguna fase. */
+const TINTA_MARCA = "#9c5310";
+
 const POR_PAGINA = 25;
 
 export function AdminApp() {
@@ -273,8 +278,15 @@ export function AdminApp() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar por fase">
-            <Chip activo={!filtro} onClick={() => setFiltro("")} color="#a95a12">
+          {/* En una pantalla estrecha las ocho fases se apilaban en cinco filas y
+              empujaban la tabla fuera de vista; en una tira que se desplaza
+              caben en una. De tablet arriba siguen envolviendo como antes. */}
+          <div
+            className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:mb-0"
+            role="group"
+            aria-label="Filtrar por fase"
+          >
+            <Chip activo={!filtro} onClick={() => setFiltro("")} color={TINTA_MARCA}>
               Todas
             </Chip>
             {ESTADOS.map((e) => (
@@ -487,10 +499,12 @@ function Chip({ activo, onClick, color, children }) {
       type="button"
       aria-pressed={activo}
       onClick={onClick}
-      className={`rounded-xl px-3 py-2.5 text-[13px] font-semibold border transition active:scale-95 whitespace-nowrap ${
+      /* shrink-0: dentro de la tira que se desplaza, sin esto los chips se
+         comprimen y las etiquetas largas se parten. */
+      className={`shrink-0 rounded-xl px-3 py-2.5 text-[13px] font-semibold border transition active:scale-95 whitespace-nowrap ${
         activo ? "text-white border-transparent" : "bg-white dark:bg-ios-superficie-osc text-gray-700 dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc"
       }`}
-      style={activo ? { background: color || "#a95a12" } : undefined}
+      style={activo ? { background: color || TINTA_MARCA } : undefined}
     >
       {children}
     </button>
