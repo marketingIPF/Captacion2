@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff } from "lucide-react";
+import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff, Plus } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { fmtFecha, fmtPrecio } from "../lib/format.js";
@@ -8,6 +8,7 @@ import { llamar, ESTADOS, estadoDe } from "./api.js";
 import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl, tokenDeSesion } from "./auth.js";
 import { pushSoportado, permisoActual, suscripcionActual, activarPush, desactivarPush } from "../lib/push.js";
 import { FichaDetalle } from "./FichaDetalle.jsx";
+import { NuevaCaptacion } from "./NuevaCaptacion.jsx";
 import { ListadoImprimible } from "./Imprimible.jsx";
 import { AdminLogin } from "./AdminLogin.jsx";
 
@@ -29,6 +30,7 @@ export function AdminApp() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [abierta, setAbierta] = useState(null);
+  const [creando, setCreando] = useState(false);
   /* Al abrir desde el botón de anotaciones, la ficha va directa a la nota en
      vez de obligar a buscarla entre ocho secciones. */
   const [enfocar, setEnfocar] = useState(null);
@@ -255,6 +257,15 @@ export function AdminApp() {
               />
             </div>
             <div className="flex gap-2 shrink-0">
+              {/* Delante de CSV e Imprimir porque es la única de las tres que
+                  añade algo; las otras dos se llevan lo que ya hay. */}
+              <button
+                type="button"
+                onClick={() => setCreando(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-rk-naranja px-3.5 py-2.5 text-[13px] font-bold text-white transition active:scale-95"
+              >
+                <Plus size={15} aria-hidden="true" /> Añadir
+              </button>
               <button
                 type="button"
                 onClick={exportarCsv}
@@ -404,6 +415,14 @@ export function AdminApp() {
                             {fmtFecha(f.recibida)}
                           </div>
                         )}
+                        {/* Que la teclearon aquí explica que le falten datos.
+                            Sin esta marca, una ficha antigua a medias parece un
+                            fallo de la app o un agente que no la rellenó. */}
+                        {f.origen === "oficina" && (
+                          <div className="text-[11px] text-ios-texto3 mt-0.5">
+                            Añadida en oficina
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-[14px] font-bold text-ios-texto dark:text-ios-texto-osc text-right whitespace-nowrap">{fmtPrecio(f.precio)}</td>
                       <td className="px-4 py-3">
@@ -466,6 +485,20 @@ export function AdminApp() {
 
       {paraImprimir && (
         <ListadoImprimible fichas={paraImprimir} total={total} descripcionFiltro={descripcionFiltro} />
+      )}
+
+      {creando && (
+        <NuevaCaptacion
+          onCerrar={() => setCreando(false)}
+          onCreada={(f) => {
+            setCreando(false);
+            /* Se recarga en vez de insertarla en la lista: puede que con su
+               fecha no caiga en la primera página, y verla aparecer arriba
+               cuando no está ahí sería mentir. */
+            cargar();
+            setAbierta(f.id);
+          }}
+        />
       )}
 
       {abierta && (

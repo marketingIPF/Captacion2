@@ -3,6 +3,7 @@
    Los datos viven en memoria y se pierden al reiniciar. */
 import { randomUUID } from "node:crypto";
 import { repartir } from "../api/estado.js";
+import { fichaAFilaDeOficina } from "../api/_ficha.js";
 import { CLAVES_FASE } from "../src/lib/fases.js";
 
 const PIN_ACCESO = "agentes-2026";
@@ -259,6 +260,7 @@ const resumenDe = (f) => ({
   agenteId: f.agente_id,
   agenteName: f.agente_nombre,
   estado: f.estado,
+  origen: f.origen || "agente",
   operacion: f.operacion,
   tipo: f.tipo,
   referencia: f.referencia,
@@ -390,6 +392,7 @@ export function mockApi() {
               ficha: {
                 id: f.id, creada: f.creada_en, recibida: f.recibida_en, actualizada: f.actualizada_en,
                 agenteId: f.agente_id, agenteName: f.agente_nombre, estado: f.estado,
+                origen: f.origen || "agente",
                 notaOficina: f.nota_oficina, actualizadaPor: f.actualizada_por,
                 data: f.datos, propietarios: f.propietarios,
               },
@@ -438,6 +441,44 @@ export function mockApi() {
               ficha: {
                 id: f.id, creada: f.creada_en, recibida: f.recibida_en, actualizada: f.actualizada_en,
                 agenteId: f.agente_id, agenteName: f.agente_nombre, estado: f.estado,
+                origen: f.origen || "agente",
+                notaOficina: f.nota_oficina, actualizadaPor: f.actualizada_por,
+                data: f.datos, propietarios: f.propietarios,
+              },
+            });
+          }
+
+          if (body.accion === "agentes") {
+            return responder(res, 200, { agentes: AGENTES.map((a) => ({ id: a.id, name: a.name })) });
+          }
+
+          if (body.accion === "crear") {
+            /* Se reutiliza la traducción del endpoint real, incluido que no
+               exija nada: si el simulador validara por su cuenta, probar aquí
+               "sin campos obligatorios" no demostraría nada. */
+            const { ok, fila, error } = fichaAFilaDeOficina(body.ficha);
+            if (!ok) return responder(res, 400, { error });
+            const recibida = body.recibida
+              ? new Date(body.recibida.length === 10 ? `${body.recibida}T12:00:00Z` : body.recibida).toISOString()
+              : new Date().toISOString();
+            const f = {
+              ...fila,
+              creada_en: recibida,
+              recibida_en: recibida,
+              actualizada_en: new Date().toISOString(),
+              actualizada_por: "julia@inmobiliariapalanca.com",
+              estado: ESTADOS.includes(body.estado) ? body.estado : "nueva",
+              origen: "oficina",
+              envios: 0,
+              nota_oficina: null,
+              eliminada_en: null,
+            };
+            fichas.set(f.id, f);
+            return responder(res, 200, {
+              ok: true,
+              ficha: {
+                id: f.id, creada: f.creada_en, recibida: f.recibida_en, actualizada: f.actualizada_en,
+                agenteId: f.agente_id, agenteName: f.agente_nombre, estado: f.estado, origen: f.origen,
                 notaOficina: f.nota_oficina, actualizadaPor: f.actualizada_por,
                 data: f.datos, propietarios: f.propietarios,
               },
@@ -447,7 +488,7 @@ export function mockApi() {
           /* Sin esto, una acción que el simulador no conozca caía en el
              listado y devolvía algo sin la forma esperada: un fallo real
              pasaba por respuesta válida. */
-          const CONOCIDAS = ["listar", "detalle", "actualizar", "editar", "eliminar", "resumen", undefined];
+          const CONOCIDAS = ["listar", "detalle", "actualizar", "editar", "eliminar", "resumen", "crear", "agentes", undefined];
           if (!CONOCIDAS.includes(body.accion)) {
             return responder(res, 400, { error: `Acción desconocida: ${body.accion}` });
           }

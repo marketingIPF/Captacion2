@@ -11,15 +11,25 @@ import { llamar } from "./api.js";
 const NORMALIZADORES = { referencia: normalizarReferencia };
 const TODOS = new Map(SECCIONES.flatMap((s) => s.fields.map((f) => [f.key, f])));
 
-/* Edición de una ficha desde la oficina.
+const hoy = () => new Date().toISOString().slice(0, 10);
+
+/* Ficha de la oficina: editar una que ya existe, o teclear una nueva.
+
    Monta los MISMOS componentes y el mismo esquema que usa el agente, así que
    los campos condicionales y las validaciones son idénticos: no hay dos ideas
-   distintas de qué es una ficha válida. */
-export function EditarFicha({ ficha, onGuardada, onCancelar }) {
+   distintas de qué es una ficha válida.
+
+   En modo "crear" no se exige nada. Son las captaciones de antes de que
+   existiera la app: de algunas no queda el propietario ni el tipo, y obligar a
+   rellenarlo llevaría a inventárselo. */
+export function EditarFicha({ ficha, modo = "editar", agentes = [], onGuardada, onCancelar }) {
+  const creando = modo === "crear";
   const [data, setData] = useState(() => ({ ...ficha.data }));
   const [propietarios, setPropietarios] = useState(() =>
     ficha.propietarios?.length ? ficha.propietarios.map((p) => ({ ...p })) : [{ nombre: "", telefono: "", dni: "", email: "" }]
   );
+  const [agenteId, setAgenteId] = useState(ficha.agenteId || "");
+  const [recibida, setRecibida] = useState(hoy);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,7 +57,18 @@ export function EditarFicha({ ficha, onGuardada, onCancelar }) {
     setGuardando(true);
     setError("");
     try {
-      const r = await llamar("editar", { id: ficha.id, data, propietarios });
+      const r = creando
+        ? await llamar("crear", {
+            ficha: {
+              id: ficha.id,
+              data,
+              propietarios,
+              agenteId,
+              agenteName: agentes.find((a) => a.id === agenteId)?.name || "",
+            },
+            recibida,
+          })
+        : await llamar("editar", { id: ficha.id, data, propietarios });
       onGuardada(r.ficha);
     } catch (e) {
       setError(e.message);
@@ -65,7 +86,7 @@ export function EditarFicha({ ficha, onGuardada, onCancelar }) {
           className="flex items-center gap-2 rounded-xl bg-rk-naranja px-4 py-2.5 text-[14px] font-bold text-white active:scale-95 transition disabled:opacity-60"
         >
           {guardando ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
-          {guardando ? "Guardando…" : "Guardar cambios"}
+          {guardando ? "Guardando…" : creando ? "Guardar captación" : "Guardar cambios"}
         </button>
         <button
           type="button"
@@ -76,7 +97,9 @@ export function EditarFicha({ ficha, onGuardada, onCancelar }) {
           <X size={15} aria-hidden="true" /> Cancelar
         </button>
         <span className="ml-auto text-[11.5px] text-ios-texto3">
-          Editas la ficha del agente. Queda registrado.
+          {creando
+            ? "Rellena solo lo que sepas. No hay campos obligatorios."
+            : "Editas la ficha del agente. Queda registrado."}
         </span>
       </div>
 
@@ -86,9 +109,12 @@ export function EditarFicha({ ficha, onGuardada, onCancelar }) {
         </p>
       )}
 
-      {/* Los avisos no bloquean: la oficina puede querer guardar algo a medias
-          mientras aclara un dato con el agente. Solo se señalan. */}
-      {problemas.length > 0 && (
+      {/* Al crear no se listan: una captación antigua incompleta es lo normal, y
+          doce avisos de campos que faltan a propósito solo son ruido. Al
+          editar sí, porque ahí sí falta algo que el agente debería haber
+          puesto. Nunca bloquean: la oficina puede guardar algo a medias
+          mientras aclara un dato. */}
+      {!creando && problemas.length > 0 && (
         <div className="rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5">
           <p className="text-[12.5px] font-bold text-amber-800 mb-1">
             {problemas.length} aviso{problemas.length === 1 ? "" : "s"} (no impiden guardar)
@@ -99,6 +125,47 @@ export function EditarFicha({ ficha, onGuardada, onCancelar }) {
             ))}
           </ul>
         </div>
+      )}
+
+      {creando && (
+        <section className="rounded-xl bg-ios-fondo dark:bg-ios-elevada-osc/40 border border-ios-borde dark:border-ios-borde-osc p-4 space-y-3">
+          <h3 className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja">
+            De quién y de cuándo
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="block text-[12px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc mb-1.5">
+                Agente que la captó
+              </span>
+              <select
+                value={agenteId}
+                onChange={(e) => setAgenteId(e.target.value)}
+                className="w-full rounded-xl border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-superficie-osc px-3 py-2.5 text-[14px] text-ios-texto dark:text-ios-texto-osc outline-none focus:border-rk-naranja"
+              >
+                <option value="">Sin asignar (queda a nombre de la oficina)</option>
+                {agentes.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="block text-[12px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc mb-1.5">
+                Fecha de la captación
+              </span>
+              <input
+                type="date"
+                value={recibida}
+                max={hoy()}
+                onChange={(e) => setRecibida(e.target.value)}
+                className="w-full rounded-xl border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-superficie-osc px-3 py-2.5 text-[14px] text-ios-texto dark:text-ios-texto-osc outline-none focus:border-rk-naranja"
+              />
+              <span className="block text-[11.5px] text-ios-texto3 mt-1">
+                Pon la de entonces, no la de hoy: si no, las antiguas contarían
+                como captaciones de este mes.
+              </span>
+            </label>
+          </div>
+        </section>
       )}
 
       {secciones.map((sec) => {
@@ -112,7 +179,7 @@ export function EditarFicha({ ficha, onGuardada, onCancelar }) {
             <div className="space-y-4">
               {campos.map((def) =>
                 def.kind === "tipo" ? (
-                  <TipoSelector key={def.key} value={data.tipo} onChange={cambiar} />
+                  <TipoSelector key={def.key} value={data.tipo} onChange={cambiar} sinObligatorios={creando} />
                 ) : (
                   <Campo
                     key={def.key}
@@ -121,6 +188,7 @@ export function EditarFicha({ ficha, onGuardada, onCancelar }) {
                     error={def.validate ? validarCampo(def.validate, data[def.key], data) : ""}
                     onChange={cambiar}
                     onBlur={alSalir}
+                    sinObligatorios={creando}
                   />
                 )
               )}

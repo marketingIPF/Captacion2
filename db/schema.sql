@@ -41,6 +41,11 @@ create table if not exists fichas (
                   check (estado in ('nueva', 'agendada_fotos', 'pendiente',
                                     'publicada', 'reservado', 'vendido',
                                     'alquilado', 'baja')),
+  -- 'agente' (llegó del móvil) u 'oficina' (la teclearon aquí). Las de la
+  -- oficina son las de antes de la app y vienen incompletas a propósito.
+  origen          text not null default 'agente'
+                  check (origen in ('agente', 'oficina')),
+
   nota_oficina    text,
   actualizada_por text,          -- email de quien lo tocó desde el panel
 

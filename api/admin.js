@@ -1,6 +1,6 @@
 import { autorizarPanel } from "./_auth.js";
 import { db } from "./_db.js";
-import { filaAFicha, filaAResumen, fichaAFila, ESTADOS } from "./_ficha.js";
+import { filaAFicha, filaAResumen, fichaAFila, fichaAFilaDeOficina, ESTADOS } from "./_ficha.js";
 import { notificarSinBloquear } from "./_push.js";
 import { nombreDeFicha } from "../src/lib/resumen.js";
 import { faseDe } from "../src/lib/fases.js";
@@ -21,6 +21,8 @@ export default async function handler(req, res) {
     if (accion === "detalle") return await detalle(sql, body, res);
     if (accion === "actualizar") return await actualizar(sql, body, res, usuario);
     if (accion === "editar") return await editar(sql, body, res, usuario);
+    if (accion === "crear") return await crear(sql, body, res, usuario);
+    if (accion === "agentes") return agentes(res);
     if (accion === "eliminar") return await eliminar(sql, body, res, usuario);
     if (accion === "resumen") return await resumen(sql, res, usuario);
     res.status(400).json({ error: "Acción desconocida" });
@@ -51,8 +53,8 @@ export async function listar(sql, body, res) {
 
   const filas = await sql`
     select id, recibida_en, corregida_en, envios, agente_id, agente_nombre,
-           estado, operacion, tipo, referencia, direccion, numero, poblacion,
-           precio, nota_oficina
+           estado, origen, operacion, tipo, referencia, direccion, numero,
+           poblacion, precio, nota_oficina
     from fichas
     where eliminada_en is null
       and (${estado}::text is null or estado = ${estado})
@@ -182,6 +184,65 @@ export async function editar(sql, body, res, usuario) {
   `;
 
   res.status(200).json({ ok: true, ficha: filaAFicha(row) });
+}
+
+/* La lista de agentes, para poder decir de quién era una captación que se
+   teclea a mano. Solo id y nombre: el panel no necesita teléfonos ni correos,
+   y lo que no se manda no se puede filtrar. */
+export function agentes(res) {
+  let lista = [];
+  try {
+    lista = JSON.parse(process.env.AGENTES_JSON || "[]");
+    if (!Array.isArray(lista)) lista = [];
+  } catch (err) {
+    console.error("AGENTES_JSON no es JSON válido", err);
+  }
+  res.status(200).json({ agentes: lista.map((a) => ({ id: a.id, name: a.name })) });
+}
+
+/* Captación tecleada desde la oficina: las de antes de que existiera la app.
+
+   No exige nada. De una captación de hace años puede no quedar el propietario
+   ni el tipo, y forzar a rellenarlo llevaría a inventárselo.
+
+   Dos cosas que la separan de una que llega del móvil:
+   - No avisa a nadie. Julia la está escribiendo; no tiene sentido notificarle
+     su propia captación.
+   - `recibida_en` es la fecha que ella indique, no hoy. Si fueran todas de
+     hoy, cuarenta captaciones antiguas aparecerían como "últimos 30 días" y
+     el panel diría algo falso. */
+export async function crear(sql, body, res, usuario) {
+  const { ok, fila, error } = fichaAFilaDeOficina(body.ficha);
+  if (!ok) return res.status(400).json({ error });
+
+  const estado = ESTADOS.includes(body.estado) ? body.estado : "nueva";
+  const recibida = fechaSuelta(body.recibida) || new Date().toISOString();
+
+  const [row] = await sql`
+    insert into fichas (
+      id, creada_en, recibida_en, agente_id, agente_nombre, operacion, tipo,
+      referencia, direccion, numero, poblacion, provincia, cp, precio,
+      datos, propietarios, estado, origen, envios, actualizada_por
+    ) values (
+      ${fila.id}, ${recibida}, ${recibida}, ${fila.agente_id}, ${fila.agente_nombre},
+      ${fila.operacion}, ${fila.tipo}, ${fila.referencia}, ${fila.direccion},
+      ${fila.numero}, ${fila.poblacion}, ${fila.provincia}, ${fila.cp}, ${fila.precio},
+      ${JSON.stringify(fila.datos)}, ${JSON.stringify(fila.propietarios)},
+      ${estado}, 'oficina', 0, ${usuario?.email || null}
+    )
+    returning *
+  `;
+
+  console.log(`Captación creada a mano por ${usuario?.email}: ${fila.referencia || fila.direccion || "sin datos"}`);
+  res.status(200).json({ ok: true, ficha: filaAFicha(row) });
+}
+
+/* Solo la fecha (2019-04-23) o un ISO completo. Devuelve null si no se puede
+   leer, para que quien llame decida qué poner. */
+function fechaSuelta(v) {
+  if (typeof v !== "string" || !v.trim()) return null;
+  const t = Date.parse(v.length === 10 ? `${v}T12:00:00Z` : v);
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
 }
 
 /* Borrado reversible. La ficha desaparece del panel y, en cuanto el móvil del

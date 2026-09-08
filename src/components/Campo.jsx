@@ -26,16 +26,20 @@ function Error({ id, msg }) {
   );
 }
 
-export const Campo = memo(function Campo({ def, value, error, onChange, onBlur }) {
+/* `sinObligatorios` quita los asteriscos. Lo usa la oficina al teclear una
+   captación antigua: ahí no hay campos obligatorios de verdad, y marcar unos
+   cuantos con asterisco mientras la cabecera dice lo contrario solo confunde. */
+export const Campo = memo(function Campo({ def, value, error, onChange, onBlur, sinObligatorios = false }) {
   const id = `campo-${def.key}`;
   const errId = `${id}-error`;
+  const requerido = def.required && !sinObligatorios;
   const aria = { "aria-invalid": !!error, "aria-describedby": error ? errId : undefined };
 
   if (def.kind === "txt" || def.kind === "num") {
     const esNum = def.kind === "num";
     return (
       <div>
-        <Etiqueta id={id} requerido={def.required}>
+        <Etiqueta id={id} requerido={requerido}>
           {def.label}
           {esNum && def.unidad ? <span className="text-ios-texto3 font-normal"> · {def.unidad}</span> : null}
         </Etiqueta>
@@ -59,7 +63,7 @@ export const Campo = memo(function Campo({ def, value, error, onChange, onBlur }
   if (def.kind === "area") {
     return (
       <div>
-        <Etiqueta id={id} requerido={def.required}>{def.label}</Etiqueta>
+        <Etiqueta id={id} requerido={requerido}>{def.label}</Etiqueta>
         <textarea
           id={id}
           value={value ?? ""}
@@ -80,7 +84,7 @@ export const Campo = memo(function Campo({ def, value, error, onChange, onBlur }
       <fieldset>
         <legend className={lblBase}>
           {def.label}
-          {def.required && <span className="text-rk-naranja ml-0.5" aria-hidden="true">*</span>}
+          {requerido && <span className="text-rk-naranja ml-0.5" aria-hidden="true">*</span>}
         </legend>
         <div className="flex flex-wrap gap-2">
           {def.options.map((o) => {

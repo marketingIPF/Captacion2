@@ -149,6 +149,11 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
                       <ValorCopiable valor={ficha.agenteName} clave="agente" copiar={copiar} copiado={copiado} etiqueta="el agente" />
                       <span aria-hidden="true">·</span>
                       <ValorCopiable valor={fmtFecha(ficha.recibida)} clave="fecha" copiar={copiar} copiado={copiado} etiqueta="la fecha" className="whitespace-nowrap" />
+                      {ficha.origen === "oficina" && (
+                        <span className="rounded-md bg-ios-fondo dark:bg-ios-elevada-osc px-1.5 py-0.5 text-[11px] font-bold text-ios-texto2 dark:text-ios-texto2-osc whitespace-nowrap">
+                          Añadida en oficina
+                        </span>
+                      )}
                       {ficha.corregida && (
                         <span className="rounded-md bg-rk-soft px-1.5 py-0.5 text-[11px] font-bold text-rk-naranja whitespace-nowrap">
                           Corregida por el agente · {fmtFecha(ficha.corregida)}

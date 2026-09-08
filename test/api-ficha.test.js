@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fichaAFila, filaAResumen, aNumero } from "../api/_ficha.js";
+import { fichaAFila, fichaAFilaDeOficina, filaAResumen, aNumero, AGENTE_OFICINA } from "../api/_ficha.js";
 import { pinValido, limitado, anotarFallo, reiniciarLimite, leerBody } from "../api/_auth.js";
+
+const ID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
 
 const valida = () => ({
   id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
@@ -78,4 +80,82 @@ test("leerBody acepta objeto, texto y basura", () => {
   assert.deepEqual(leerBody({ body: '{"pin":"x"}' }), { pin: "x" });
   assert.deepEqual(leerBody({ body: "no es json" }), {});
   assert.deepEqual(leerBody({}), {});
+});
+
+/* ── Captación tecleada desde la oficina ───────────────────────────────── */
+
+test("la oficina puede guardar una captación con casi nada", () => {
+  /* Es el caso que pidió Julia: las de antes de la app. De algunas no queda
+     ni el propietario ni el tipo. */
+  const { ok, fila } = fichaAFilaDeOficina({ id: ID, data: {} });
+  assert.equal(ok, true);
+  assert.equal(fila.direccion, null);
+  assert.equal(fila.tipo, null);
+  assert.deepEqual(fila.propietarios, []);
+});
+
+test("sin agente queda a nombre de la oficina, no a nulo", () => {
+  /* agente_id y agente_nombre no admiten nulo en la base de datos: sin este
+     relleno, guardar sin elegir agente reventaría con un error de Postgres. */
+  const { fila } = fichaAFilaDeOficina({ id: ID, data: {} });
+  assert.equal(fila.agente_id, AGENTE_OFICINA.id);
+  assert.equal(fila.agente_nombre, AGENTE_OFICINA.name);
+  assert.ok(fila.agente_id && fila.agente_nombre, "la base de datos los exige");
+});
+
+test("si la oficina dice de quién era, se respeta", () => {
+  const { fila } = fichaAFilaDeOficina({
+    id: ID,
+    data: { direccion: "Calle Colón 4" },
+    agenteId: "eva-valles",
+    agenteName: "Eva Vallés",
+  });
+  assert.equal(fila.agente_id, "eva-valles");
+  assert.equal(fila.agente_nombre, "Eva Vallés");
+});
+
+test("los propietarios vacíos no se guardan", () => {
+  /* El formulario arranca con una fila de propietario en blanco. Guardarla
+     dejaría un propietario fantasma en cada ficha antigua. */
+  const { fila } = fichaAFilaDeOficina({
+    id: ID,
+    data: {},
+    propietarios: [
+      { nombre: "", telefono: "", dni: "", email: "" },
+      { nombre: "Ana", telefono: "", dni: "", email: "" },
+    ],
+  });
+  assert.equal(fila.propietarios.length, 1);
+  assert.equal(fila.propietarios[0].nombre, "Ana");
+});
+
+test("un identificador inválido sí se rechaza", () => {
+  /* Lo único que se sigue exigiendo: sin id no hay fila que insertar. */
+  assert.equal(fichaAFilaDeOficina({ id: "no-es-uuid", data: {} }).ok, false);
+  assert.equal(fichaAFilaDeOficina(null).ok, false);
+});
+
+test("la entrada del agente NO se relaja", () => {
+  /* La razón de tener dos funciones: que aflojar una no afloje la otra. Si
+     esto empieza a pasar, es que alguien las ha unificado con una bandera. */
+  const aMedias = { id: ID, data: {}, agenteId: "eva-valles", agenteName: "Eva Vallés" };
+  assert.equal(fichaAFila(aMedias).ok, false, "sin tipo ni dirección no debería colar");
+  assert.equal(fichaAFila({ ...aMedias, data: { tipo: "Piso", direccion: "X" } }).ok, false, "sigue faltando el propietario");
+});
+
+test("las dos rutas traducen los campos igual", () => {
+  /* Comparten el mapeo a propósito: si se separaran, la misma ficha guardaría
+     un precio distinto según por dónde entrara. */
+  const ficha = {
+    id: ID,
+    agenteId: "eva-valles",
+    agenteName: "Eva Vallés",
+    propietarios: [{ nombre: "Ana" }],
+    data: { tipo: "Piso", direccion: "Calle Colón", numero: "4", precio: "250.000", cp: "46011", operacion: "Venta" },
+  };
+  const a = fichaAFila(ficha).fila;
+  const b = fichaAFilaDeOficina(ficha).fila;
+  for (const c of ["agente_id", "tipo", "direccion", "numero", "precio", "cp", "operacion", "referencia"]) {
+    assert.deepEqual(b[c], a[c], `el campo ${c} se traduce distinto según la ruta`);
+  }
 });

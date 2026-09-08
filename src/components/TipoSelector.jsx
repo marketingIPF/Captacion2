@@ -2,11 +2,12 @@ import { memo } from "react";
 import { TIPOS_INMUEBLE } from "../data/tipos.js";
 import { lblBase } from "./Campo.jsx";
 
-export const TipoSelector = memo(function TipoSelector({ value, onChange }) {
+export const TipoSelector = memo(function TipoSelector({ value, onChange, sinObligatorios = false }) {
   return (
     <fieldset>
       <legend className={lblBase}>
-        Tipo de inmueble<span className="text-rk-naranja ml-0.5" aria-hidden="true">*</span>
+        Tipo de inmueble
+        {!sinObligatorios && <span className="text-rk-naranja ml-0.5" aria-hidden="true">*</span>}
       </legend>
       <p className="text-[11px] text-ios-texto3 -mt-1 mb-2">
         Determina qué campos se piden más abajo.

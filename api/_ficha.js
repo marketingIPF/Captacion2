@@ -38,25 +38,63 @@ export function fichaAFila(ficha) {
   const peso = JSON.stringify({ d, propietarios }).length;
   if (peso > 200_000) return { ok: false, error: "La ficha es demasiado grande" };
 
+  return { ok: true, fila: aFila(ficha, d, propietarios) };
+}
+
+/* La misma traducción, sin exigencias.
+
+   Es para las captaciones que la oficina teclea a mano: las de antes de que
+   existiera la app. De esas puede no quedar el propietario, ni el tipo, ni la
+   dirección completa, y obligar a rellenarlas llevaría a inventarse datos, que
+   es peor que no tenerlos. Lo único que se exige es un identificador válido.
+
+   Se mantiene aparte de fichaAFila y no como una bandera dentro porque las
+   exigencias de la entrada del agente son deliberadas: ahí SÍ tiene que haber
+   propietario y dirección, y no quiero que una bandera mal puesta las
+   desactive sin que se note. */
+export function fichaAFilaDeOficina(ficha) {
+  if (!ficha || typeof ficha !== "object") return { ok: false, error: "Ficha vacía" };
+  if (!UUID_RE.test(String(ficha.id || ""))) return { ok: false, error: "Identificador de ficha no válido" };
+
+  const d = ficha.data && typeof ficha.data === "object" ? ficha.data : {};
+  const propietarios = Array.isArray(ficha.propietarios)
+    ? ficha.propietarios.filter((p) => p && Object.values(p).some((v) => String(v ?? "").trim()))
+    : [];
+
+  const peso = JSON.stringify({ d, propietarios }).length;
+  if (peso > 200_000) return { ok: false, error: "La ficha es demasiado grande" };
+
+  /* agente_id y agente_nombre no admiten nulo en la base de datos, y tampoco
+     tendría sentido: toda captación es de alguien. Si la oficina no sabe de
+     quién era, queda a su nombre, que es la verdad. */
+  const conAgente = {
+    ...ficha,
+    agenteId: ficha.agenteId || AGENTE_OFICINA.id,
+    agenteName: ficha.agenteName || AGENTE_OFICINA.name,
+  };
+
+  return { ok: true, fila: aFila(conAgente, d, propietarios) };
+}
+
+export const AGENTE_OFICINA = { id: "oficina", name: "Oficina" };
+
+function aFila(ficha, d, propietarios) {
   return {
-    ok: true,
-    fila: {
-      id: ficha.id,
-      creada_en: fechaValida(ficha.creada) || new Date().toISOString(),
-      agente_id: texto(ficha.agenteId, 100),
-      agente_nombre: texto(ficha.agenteName, 200),
-      operacion: texto(d.operacion, 20),
-      tipo: texto(d.tipo, 40),
-      referencia: texto(d.referencia, 80),
-      direccion: texto(d.direccion),
-      numero: texto(d.numero, 20),
-      poblacion: texto(d.poblacion, 120),
-      provincia: texto(d.provincia, 120),
-      cp: texto(d.cp, 10),
-      precio: aNumero(d.precio),
-      datos: d,
-      propietarios,
-    },
+    id: ficha.id,
+    creada_en: fechaValida(ficha.creada) || new Date().toISOString(),
+    agente_id: texto(ficha.agenteId, 100),
+    agente_nombre: texto(ficha.agenteName, 200),
+    operacion: texto(d.operacion, 20),
+    tipo: texto(d.tipo, 40),
+    referencia: texto(d.referencia, 80),
+    direccion: texto(d.direccion),
+    numero: texto(d.numero, 20),
+    poblacion: texto(d.poblacion, 120),
+    provincia: texto(d.provincia, 120),
+    cp: texto(d.cp, 10),
+    precio: aNumero(d.precio),
+    datos: d,
+    propietarios,
   };
 }
 
@@ -80,6 +118,9 @@ export const filaAFicha = (row) => ({
   agenteId: row.agente_id,
   agenteName: row.agente_nombre,
   estado: row.estado,
+  /* 'oficina' = la teclearon en el panel, no llegó de un móvil. Justifica
+     que le falten datos. */
+  origen: row.origen || "agente",
   notaOficina: row.nota_oficina,
   actualizadaPor: row.actualizada_por || null,
   data: row.datos,
@@ -97,6 +138,9 @@ export const filaAResumen = (row) => ({
   agenteId: row.agente_id,
   agenteName: row.agente_nombre,
   estado: row.estado,
+  /* 'oficina' = la teclearon en el panel, no llegó de un móvil. Justifica
+     que le falten datos. */
+  origen: row.origen || "agente",
   operacion: row.operacion,
   tipo: row.tipo,
   referencia: row.referencia,
