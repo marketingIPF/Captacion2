@@ -278,14 +278,12 @@ export function AdminApp() {
             </div>
           </div>
 
-          {/* En una pantalla estrecha las ocho fases se apilaban en cinco filas y
-              empujaban la tabla fuera de vista; en una tira que se desplaza
-              caben en una. De tablet arriba siguen envolviendo como antes. */}
-          <div
-            className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:mb-0"
-            role="group"
-            aria-label="Filtrar por fase"
-          >
+          {/* Todas las fases a la vista, en las filas que hagan falta. Probé una
+              tira que se desplazaba en horizontal para ahorrar alto, pero
+              esconde filtros: con ocho fases hay que poder verlas de un
+              vistazo. En móvil los chips van más compactos para que ocupen
+              menos filas. */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2" role="group" aria-label="Filtrar por fase">
             <Chip activo={!filtro} onClick={() => setFiltro("")} color={TINTA_MARCA}>
               Todas
             </Chip>
@@ -327,7 +325,13 @@ export function AdminApp() {
             fase más larga se recortaba a media palabra. Ahora la tabla se
             desplaza dentro de su caja en vez de perder texto, y la página
             nunca se desplaza en horizontal. */}
-        <div className="rounded-2xl border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-superficie-osc overflow-x-auto">
+        {/* relative, y no por estética: las cabeceras de columna para lectores
+            de pantalla van en position:absolute, y sin un ancestro posicionado
+            su bloque contenedor era la página. Al desplazarse la tabla
+            quedaban en x≈540 y hacían que TODA la página del panel se
+            desplazara en horizontal en un móvil. Con esto las recorta la
+            propia caja. */}
+        <div className="relative rounded-2xl border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-superficie-osc overflow-x-auto">
           {cargando && fichas.length === 0 && (
             <div className="py-20 flex justify-center"><Loader2 size={24} className="animate-spin text-rk-naranja" aria-label="Cargando" /></div>
           )}
@@ -499,9 +503,10 @@ function Chip({ activo, onClick, color, children }) {
       type="button"
       aria-pressed={activo}
       onClick={onClick}
-      /* shrink-0: dentro de la tira que se desplaza, sin esto los chips se
-         comprimen y las etiquetas largas se parten. */
-      className={`shrink-0 rounded-xl px-3 py-2.5 text-[13px] font-semibold border transition active:scale-95 whitespace-nowrap ${
+      /* La letra baja un punto en móvil y el hueco se aprieta, que es lo que
+         ahorra una fila; el alto se mantiene en 40 px porque por debajo de eso
+         un chip se vuelve difícil de acertar con el dedo. */
+      className={`shrink-0 rounded-xl px-2.5 py-2.5 text-[12px] sm:px-3 sm:text-[13px] font-semibold border transition active:scale-95 whitespace-nowrap ${
         activo ? "text-white border-transparent" : "bg-white dark:bg-ios-superficie-osc text-gray-700 dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc"
       }`}
       style={activo ? { background: color || TINTA_MARCA } : undefined}
