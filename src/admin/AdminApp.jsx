@@ -109,8 +109,32 @@ export function AdminApp() {
 
   useEffect(() => setPagina(1), [busqueda, filtro]);
 
+  /* Trae el conjunto filtrado COMPLETO, por páginas.
+
+     Antes pedía `limite: 200` de una vez, y el servidor tampoco sirve más de
+     200 por consulta: pasadas las 200 captaciones, el CSV y el listado
+     impreso se habrían cortado en silencio. Un export incompleto que no avisa
+     es peor que uno que falla. */
+  const traerTodas = useCallback(async () => {
+    const POR_TANDA = 200;
+    const acumuladas = [];
+    for (let desde = 1; ; desde += POR_TANDA) {
+      const r = await llamar("listar", {
+        limite: POR_TANDA,
+        desde,
+        estado: filtro || undefined,
+        busqueda,
+      });
+      acumuladas.push(...r.fichas);
+      /* Se para cuando ya están todas, o cuando el servidor deja de devolver:
+         la segunda condición evita un bucle infinito si `total` no cuadrara
+         con lo que se sirve. */
+      if (acumuladas.length >= r.total || r.fichas.length < POR_TANDA) return acumuladas;
+    }
+  }, [filtro, busqueda]);
+
   const exportarCsv = async () => {
-    const { fichas: todas } = await llamar("listar", { limite: 200, estado: filtro || undefined, busqueda });
+    const todas = await traerTodas();
     const cab = ["Recibida", "Agente", "Estado", "Operación", "Tipo", "Referencia", "Dirección", "Población", "Precio"];
     const escapar = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const filas = todas.map((f) =>
@@ -143,11 +167,7 @@ export function AdminApp() {
     if (preparandoImpresion) return;
     setPreparandoImpresion(true);
     try {
-      const { fichas: todas } = await llamar("listar", {
-        limite: 200,
-        estado: filtro || undefined,
-        busqueda,
-      });
+      const todas = await traerTodas();
       setParaImprimir(todas);
       /* Dos frames: con uno, el diálogo del sistema puede abrirse antes de
          que el documento esté pintado y saldría en blanco. */

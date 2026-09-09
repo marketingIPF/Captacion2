@@ -186,7 +186,7 @@ const ESTADOS = CLAVES_FASE;
 const fichas = new Map();
 
 /* Semilla determinista para que el panel se vea poblado. */
-for (let i = 0; i < 47; i++) {
+for (let i = 0; i < Number(process.env.MOCK_FICHAS || 47); i++) {
   const id = randomUUID();
   const agente = AGENTES[i % AGENTES.length];
   const dias = i * 1.7;
