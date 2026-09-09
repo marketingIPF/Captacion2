@@ -81,3 +81,59 @@ test("los contadores y el año se muestran sin sufijo", async () => {
   assert.equal(filas["M² útiles"], "98,5 m²");
   assert.equal(filas["Gastos de comunidad"], "62 €/mes");
 });
+
+/* ── Campos que se ven aunque estén vacíos ─────────────────────────────── */
+
+const fichaBase = (data = {}) => ({
+  agenteName: "Ana",
+  fecha: "2026-09-01T10:00:00.000Z",
+  propietarios: [],
+  data: { operacion: "Venta", tipo: "Piso", direccion: "Calle Mayor", ...data },
+});
+
+test("el prospecto se ve en la ficha aunque no lo hayan rellenado", async () => {
+  /* Lo pidió Julia: la fila desaparecía y no se distinguía de una captación
+     que nadie había revisado. */
+  const { bloquesFicha, SIN_RELLENAR } = await import("../src/lib/resumen.js");
+  const filas = bloquesFicha(fichaBase()).flatMap((b) => b.filas);
+  const prospecto = filas.find(([k]) => k === "Prospecto");
+
+  assert.ok(prospecto, "la fila del prospecto tiene que estar");
+  assert.equal(prospecto[1], SIN_RELLENAR);
+  assert.equal(prospecto[2], true, "va marcada como vacía, para pintarla distinta");
+});
+
+test("con prospecto se muestra el valor, sin marca", async () => {
+  const { bloquesFicha } = await import("../src/lib/resumen.js");
+  const filas = bloquesFicha(fichaBase({ prospecto: "Luis Pérez" })).flatMap((b) => b.filas);
+  assert.deepEqual(filas.find(([k]) => k === "Prospecto"), ["Prospecto", "Luis Pérez"]);
+});
+
+test("lo que se copia NO incluye las filas vacías", async () => {
+  /* Es la razón de marcarlas: "No tiene" pegado en un campo del CRM sería un
+     dato falso, y Julia copia sección por sección. */
+  const { bloquesFicha, bloqueComoTexto, textoFicha, SIN_RELLENAR } = await import("../src/lib/resumen.js");
+  const ficha = fichaBase();
+  const bloque = bloquesFicha(ficha).find((b) => b.filas.some(([k]) => k === "Prospecto"));
+
+  assert.ok(bloque, "el bloque del prospecto debería existir");
+  assert.ok(!bloqueComoTexto(bloque).includes(SIN_RELLENAR), "la sección copiada lo incluye");
+  assert.ok(!textoFicha(ficha).includes(SIN_RELLENAR), "la ficha completa copiada lo incluye");
+
+  /* Y con valor sí se copia, que es lo que le sirve. */
+  const conValor = fichaBase({ prospecto: "Luis Pérez" });
+  assert.ok(textoFicha(conValor).includes("Luis Pérez"));
+});
+
+test("una sección que solo tendría filas vacías no se pinta", async () => {
+  /* Un título de sección para decir que no hay nada debajo es peor que nada.
+     La de identificación siempre tiene algo (operación, tipo), así que se
+     comprueba que ninguna sección queda hecha solo de ausencias. */
+  const { bloquesFicha } = await import("../src/lib/resumen.js");
+  for (const b of bloquesFicha(fichaBase())) {
+    assert.ok(
+      b.filas.some(([, , vacia]) => !vacia),
+      `la sección «${b.titulo}» solo tiene filas vacías`
+    );
+  }
+});

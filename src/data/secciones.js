@@ -32,7 +32,12 @@ export const SECCIONES = [
     title: "Agente e identificación",
     icon: User,
     fields: [
-      txt("prospecto", "Prospecto", { ph: "Nombre del prospecto" }),
+      /* `siempre`: la fila se ve en el panel aunque esté vacía. La oficina
+         necesita saber si la captación viene de un prospecto ANTES de subirla
+         al CRM, y una fila que desaparece no se distingue de una que nadie ha
+         mirado. Es el único campo así de momento; si se marcan muchos, el
+         panel se llena de filas sin contenido. */
+      txt("prospecto", "Prospecto", { ph: "Nombre del prospecto", siempre: true }),
       txt("referencia", "Referencia interna", {
         ph: "#05618",
         inputMode: "numeric",

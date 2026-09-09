@@ -464,11 +464,12 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
                     />
                   </div>
                   <div className="divide-y divide-ios-borde dark:divide-ios-borde-osc">
-                    {b.filas.map(([k, v]) => (
+                    {b.filas.map(([k, v, vacia]) => (
                       <FilaCopiable
                         key={k}
                         etiqueta={k}
                         valor={v}
+                        vacia={vacia}
                         clave={`${b.titulo}-${k}`}
                         copiar={copiar}
                         copiado={copiado}

@@ -8,10 +8,17 @@ const valorLegible = (f, v) => {
   return String(v);
 };
 
+export const SIN_RELLENAR = "No tiene";
+
 const tieneValor = (v) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
 
-/* Devuelve [{ titulo, filas: [[etiqueta, valor]] }] — la misma estructura
-   alimenta el texto plano y el HTML, para que nunca se desincronicen. */
+/* Devuelve [{ titulo, filas: [[etiqueta, valor, vacia]] }] — la misma
+   estructura alimenta el texto plano y el HTML, para que nunca se desincronicen.
+
+   `vacia` marca las filas de un campo sin rellenar que se muestran de todas
+   formas porque el esquema lo pide (`siempre`). Se pintan en pantalla, pero
+   NO entran en el texto que se copia: "No tiene" pegado en un campo del CRM
+   sería un dato falso. */
 export function bloquesFicha(ficha) {
   const d = ficha.data;
   const bloques = [];
@@ -30,11 +37,16 @@ export function bloquesFicha(ficha) {
     const filas = [];
     camposAplicables(sec, d).forEach((f) => {
       const v = f.kind === "tipo" ? d.tipo : d[f.key];
-      if (!tieneValor(v)) return;
       const etiqueta = f.kind === "num" && f.unidad === "€" ? `${f.label} (€)` : f.label;
+      if (!tieneValor(v)) {
+        if (f.siempre) filas.push([etiqueta, SIN_RELLENAR, true]);
+        return;
+      }
       filas.push([etiqueta, valorLegible(f, v)]);
     });
-    if (filas.length) bloques.push({ titulo: sec.title, filas });
+    /* Un bloque que solo tiene filas vacías no se pinta: sería una sección
+       entera para decir que no hay nada. */
+    if (filas.some(([, , vacia]) => !vacia)) bloques.push({ titulo: sec.title, filas });
   });
 
   return bloques;
@@ -73,7 +85,10 @@ export function cifrasClave(ficha) {
 
 /* Un bloque como texto plano, para copiarlo de golpe. */
 export function bloqueComoTexto(bloque) {
-  return bloque.filas.map(([k, v]) => `${k}: ${v}`).join("\n");
+  return bloque.filas
+    .filter(([, , vacia]) => !vacia)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("\n");
 }
 
 /* Cómo se llama una captación. La agencia la identifica por su referencia
@@ -116,7 +131,7 @@ export function textoFicha(ficha) {
   ];
   bloquesFicha(ficha).forEach((b) => {
     L.push(`— ${b.titulo.toUpperCase()} —`);
-    b.filas.forEach(([k, v]) => L.push(`  ${k}: ${v}`));
+    b.filas.forEach(([k, v, vacia]) => !vacia && L.push(`  ${k}: ${v}`));
     L.push("");
   });
   return L.join("\n");

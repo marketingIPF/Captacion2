@@ -4,8 +4,25 @@ import { Check, Copy } from "lucide-react";
    Es un botón, no un div con onClick: así funciona con teclado y los lectores
    de pantalla anuncian qué hace. El icono solo aparece al pasar por encima,
    para no llenar la ficha de iconos y perder lo de "más visual". */
-export function FilaCopiable({ etiqueta, valor, clave, copiar, copiado }) {
+/* Una fila `vacia` es un campo sin rellenar que se muestra a propósito. No se
+   puede copiar: "No tiene" pegado en un campo del CRM sería un dato falso, y un
+   botón de copiar invita justo a eso. Va en gris y en cursiva para que se lea
+   como una ausencia y no como el contenido del campo. */
+export function FilaCopiable({ etiqueta, valor, clave, copiar, copiado, vacia = false }) {
   const esta = copiado === clave;
+
+  if (vacia) {
+    return (
+      <div className="w-full flex gap-4 py-2 px-2 -mx-2">
+        <span className="w-2/5 shrink-0 text-[13px] text-ios-texto2 dark:text-ios-texto2-osc">
+          {etiqueta}
+        </span>
+        <span className="flex-1 text-[13.5px] italic text-ios-texto3">{valor}</span>
+        <span className="shrink-0 w-4" aria-hidden="true" />
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"

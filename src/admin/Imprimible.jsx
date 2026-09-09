@@ -188,12 +188,15 @@ export function FichaImprimible({ ficha }) {
           <Titulo>{b.titulo}</Titulo>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "9pt" }}>
             <tbody>
-              {b.filas.map(([k, v]) => (
+              {/* Las filas de un campo sin rellenar sí salen en papel —aquí no
+                  se copia y pega nada—, pero en gris y sin negrita: es una
+                  ausencia, no un dato. */}
+              {b.filas.map(([k, v, vacia]) => (
                 <tr key={k}>
                   <td style={{ width: "45%", padding: "1.1mm 0", color: "#555", borderBottom: "0.3pt solid #eee", verticalAlign: "top" }}>
                     {k}
                   </td>
-                  <td style={{ padding: "1.1mm 0", fontWeight: 600, borderBottom: "0.3pt solid #eee" }}>{v}</td>
+                  <td style={{ padding: "1.1mm 0", fontWeight: vacia ? 400 : 600, fontStyle: vacia ? "italic" : "normal", color: vacia ? "#888" : "inherit", borderBottom: "0.3pt solid #eee" }}>{v}</td>
                 </tr>
               ))}
             </tbody>
