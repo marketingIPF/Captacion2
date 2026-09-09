@@ -32,12 +32,23 @@ export const SECCIONES = [
     title: "Agente e identificación",
     icon: User,
     fields: [
-      /* `siempre`: la fila se ve en el panel aunque esté vacía. La oficina
+      /* El prospecto es el NÚMERO que le da IA Gestión, no el nombre de la
+         persona: el hueco pedía "Nombre del prospecto" y por eso llegaban
+         nombres. Va como texto con validación de cifras, no como campo
+         numérico, porque es un identificador y uno numérico lo formatearía
+         con separador de miles ("12345" → "12.345"). Igual que la referencia.
+
+         `siempre`: la fila se ve en el panel aunque esté vacía. La oficina
          necesita saber si la captación viene de un prospecto ANTES de subirla
          al CRM, y una fila que desaparece no se distingue de una que nadie ha
          mirado. Es el único campo así de momento; si se marcan muchos, el
          panel se llena de filas sin contenido. */
-      txt("prospecto", "Prospecto", { ph: "Nombre del prospecto", siempre: true }),
+      txt("prospecto", "Nº de prospecto", {
+        ph: "Solo el número",
+        inputMode: "numeric",
+        validate: "prospecto",
+        siempre: true,
+      }),
       txt("referencia", "Referencia interna", {
         ph: "#05618",
         inputMode: "numeric",

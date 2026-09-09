@@ -63,6 +63,17 @@ export function normalizarReferencia(v) {
   return `#${m[1].padStart(5, "0")}`;
 }
 
+/* El prospecto es un número en IA Gestión, no un nombre. Se guarda como texto
+   y no como campo numérico a propósito: es un identificador, y un campo
+   numérico lo formatearía con separador de miles ("12345" → "12.345"). Mismo
+   motivo que la referencia interna. */
+export function validarProspecto(v) {
+  if (!v) return "";
+  const s = String(v).trim();
+  if (!/^\d{1,10}$/.test(s)) return "Es un número: solo cifras, sin letras ni espacios";
+  return "";
+}
+
 export function validarEmail(v) {
   if (!v) return "";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return "Email no válido";
@@ -81,6 +92,7 @@ const CONTEXTUALES = {
 
 const SIMPLES = {
   referencia: validarReferencia,
+  prospecto: validarProspecto,
   cp: validarCp,
   anio: validarAnio,
   refCatastral: validarRefCatastral,

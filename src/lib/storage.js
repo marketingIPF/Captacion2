@@ -14,11 +14,26 @@ export const K = {
    Al caducar, la app vuelve a pedir el PIN. */
 export const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 días
 
+/* Si lo guardado no se puede leer, se aparta una copia antes de devolver el
+   valor por defecto.
+
+   Sin esto, un dato a medio escribir —el navegador puede matar la pestaña en
+   mitad de un guardado— hacía que la app arrancara con el historial vacío y
+   el efecto que persiste lo sobrescribía en el mismo instante: se perdía sin
+   que quedara ni rastro de que había habido algo. Así al menos se puede
+   recuperar a mano y se ve en la consola que ha pasado. */
 export const load = (k, def) => {
+  let crudo = null;
   try {
-    const r = localStorage.getItem(k);
-    return r ? JSON.parse(r) : def;
-  } catch {
+    crudo = localStorage.getItem(k);
+    return crudo ? JSON.parse(crudo) : def;
+  } catch (err) {
+    console.error(`No se pudo leer ${k}; se aparta una copia en ${k}_roto`, err);
+    try {
+      if (crudo) localStorage.setItem(`${k}_roto`, crudo);
+    } catch {
+      /* Si tampoco cabe la copia, no hay más que hacer. */
+    }
     return def;
   }
 };

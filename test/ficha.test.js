@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { validarDni, validarTelefono, validarCp, limpiarNumero, parseNumero } from "../src/lib/validacion.js";
+import { validarDni, validarTelefono, validarCp, limpiarNumero, parseNumero, validarProspecto } from "../src/lib/validacion.js";
 
 test("DNI: acepta válidos y rechaza letra incorrecta", () => {
   assert.equal(validarDni("12345678Z"), "");
@@ -58,4 +58,16 @@ test("la referencia interna se normaliza al formato de la agencia", async () => 
   /* Lo que no cuadra se deja intacto para que la validación pueda avisar,
      en vez de destrozarlo silenciosamente. */
   assert.equal(normalizarReferencia("REF-0001"), "REF-0001");
+});
+
+test("el prospecto solo acepta cifras", () => {
+  /* Julia lo necesita como número: es el identificador de IA Gestión. El hueco
+     del formulario pedía "Nombre del prospecto" y por eso llegó
+     «Josefina Perez Lucena» en la captación #05613. */
+  assert.equal(validarProspecto("4120"), "");
+  assert.equal(validarProspecto("12345"), "");
+  assert.equal(validarProspecto(""), "", "vacío no es un error: no es obligatorio");
+  assert.match(validarProspecto("Josefina Perez Lucena"), /número/i);
+  assert.match(validarProspecto("41 20"), /número/i, "ni con espacios");
+  assert.match(validarProspecto("#4120"), /número/i, "esto es una referencia, no un prospecto");
 });

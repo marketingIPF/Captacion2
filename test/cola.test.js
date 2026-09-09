@@ -1,5 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { load } from "../src/lib/storage.js";
 
 /* localStorage mínimo: cola.js lo usa a través de lib/storage.js. */
 const almacen = new Map();
@@ -102,4 +103,27 @@ test("sin PIN no se intenta nada, para no vaciar la cola por error", async () =>
   const r = await procesarCola("");
   assert.equal(r.enviadas, 0);
   assert.equal(pendientes(), 1);
+});
+
+test("un dato ilegible se aparta en vez de perderse", () => {
+  /* Era un camino de pérdida silenciosa: load() devolvía la lista vacía y el
+     efecto que persiste la sobrescribía en el mismo instante, así que un
+     guardado a medias borraba el historial sin dejar rastro. */
+  const almacen = new Map([["rk2_fichas_sent", "[{roto"]]);
+  globalThis.localStorage = {
+    getItem: (k) => (almacen.has(k) ? almacen.get(k) : null),
+    setItem: (k, v) => almacen.set(k, v),
+    removeItem: (k) => almacen.delete(k),
+  };
+  const errores = [];
+  const antes = console.error;
+  console.error = (...a) => errores.push(a.join(" "));
+  try {
+    assert.deepEqual(load("rk2_fichas_sent", []), [], "devuelve el valor por defecto");
+    assert.equal(almacen.get("rk2_fichas_sent_roto"), "[{roto", "y guarda la copia");
+    assert.equal(errores.length, 1, "y lo deja en la consola");
+  } finally {
+    console.error = antes;
+    delete globalThis.localStorage;
+  }
 });

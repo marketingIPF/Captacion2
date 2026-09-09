@@ -84,6 +84,10 @@ test("los contadores y el año se muestran sin sufijo", async () => {
 
 /* ── Campos que se ven aunque estén vacíos ─────────────────────────────── */
 
+/* La etiqueta se saca del esquema en vez de escribirla: si algún día cambia el
+   nombre del campo, estos tests siguen comprobando lo que importa. */
+const ETIQUETA_PROSPECTO = SECCIONES.flatMap((s) => s.fields).find((f) => f.key === "prospecto").label;
+
 const fichaBase = (data = {}) => ({
   agenteName: "Ana",
   fecha: "2026-09-01T10:00:00.000Z",
@@ -96,7 +100,7 @@ test("el prospecto se ve en la ficha aunque no lo hayan rellenado", async () => 
      que nadie había revisado. */
   const { bloquesFicha, SIN_RELLENAR } = await import("../src/lib/resumen.js");
   const filas = bloquesFicha(fichaBase()).flatMap((b) => b.filas);
-  const prospecto = filas.find(([k]) => k === "Prospecto");
+  const prospecto = filas.find(([k]) => k === ETIQUETA_PROSPECTO);
 
   assert.ok(prospecto, "la fila del prospecto tiene que estar");
   assert.equal(prospecto[1], SIN_RELLENAR);
@@ -105,8 +109,8 @@ test("el prospecto se ve en la ficha aunque no lo hayan rellenado", async () => 
 
 test("con prospecto se muestra el valor, sin marca", async () => {
   const { bloquesFicha } = await import("../src/lib/resumen.js");
-  const filas = bloquesFicha(fichaBase({ prospecto: "Luis Pérez" })).flatMap((b) => b.filas);
-  assert.deepEqual(filas.find(([k]) => k === "Prospecto"), ["Prospecto", "Luis Pérez"]);
+  const filas = bloquesFicha(fichaBase({ prospecto: "4120" })).flatMap((b) => b.filas);
+  assert.deepEqual(filas.find(([k]) => k === ETIQUETA_PROSPECTO), [ETIQUETA_PROSPECTO, "4120"]);
 });
 
 test("lo que se copia NO incluye las filas vacías", async () => {
@@ -114,15 +118,15 @@ test("lo que se copia NO incluye las filas vacías", async () => {
      dato falso, y Julia copia sección por sección. */
   const { bloquesFicha, bloqueComoTexto, textoFicha, SIN_RELLENAR } = await import("../src/lib/resumen.js");
   const ficha = fichaBase();
-  const bloque = bloquesFicha(ficha).find((b) => b.filas.some(([k]) => k === "Prospecto"));
+  const bloque = bloquesFicha(ficha).find((b) => b.filas.some(([k]) => k === ETIQUETA_PROSPECTO));
 
   assert.ok(bloque, "el bloque del prospecto debería existir");
   assert.ok(!bloqueComoTexto(bloque).includes(SIN_RELLENAR), "la sección copiada lo incluye");
   assert.ok(!textoFicha(ficha).includes(SIN_RELLENAR), "la ficha completa copiada lo incluye");
 
   /* Y con valor sí se copia, que es lo que le sirve. */
-  const conValor = fichaBase({ prospecto: "Luis Pérez" });
-  assert.ok(textoFicha(conValor).includes("Luis Pérez"));
+  const conValor = fichaBase({ prospecto: "4120" });
+  assert.ok(textoFicha(conValor).includes("4120"));
 });
 
 test("una sección que solo tendría filas vacías no se pinta", async () => {
