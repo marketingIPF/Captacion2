@@ -313,6 +313,29 @@ export function mockApi() {
           return responder(res, 200, { ok: true, simulado: true });
         }
 
+        if (ruta === "/api/mis-fichas") {
+          if (body.pin !== PIN_ACCESO) return responder(res, 401, { error: "PIN incorrecto" });
+          if (!body.agenteId) return responder(res, 400, { error: "Falta el agente" });
+          const suyas = [...fichas.values()]
+            .filter((f) => f.agente_id === body.agenteId && !f.eliminada_en)
+            .sort((a, b) => String(a.recibida_en).localeCompare(String(b.recibida_en)));
+          /* Mismos campos que el endpoint real: sin la nota interna ni el
+             rastro de quién editó desde el panel. */
+          return responder(res, 200, {
+            fichas: suyas.map((f) => ({
+              id: f.id,
+              agenteId: f.agente_id,
+              agenteName: f.agente_nombre,
+              creada: f.creada_en,
+              fecha: f.recibida_en,
+              data: f.datos || {},
+              propietarios: f.propietarios || [],
+              fase: f.estado,
+              envio: { estado: "enviada", envios: f.envios ?? 1 },
+            })),
+          });
+        }
+
         if (ruta === "/api/estado") {
           if (body.pin !== PIN_ACCESO) return responder(res, 401, { error: "PIN incorrecto" });
           /* Se reutiliza la función del endpoint real: si el simulador

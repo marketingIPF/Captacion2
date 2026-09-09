@@ -11,6 +11,7 @@ import { useAutosave } from "./hooks/useAutosave.js";
 import { fichaVacia } from "./lib/ficha.js";
 import { enviarAlServidor, encolar, desencolar, pendientes, procesarCola } from "./lib/cola.js";
 import { consultarEstados } from "./lib/estados.js";
+import { pedirMisFichas, unirHistorial } from "./lib/recuperar.js";
 import { K, load, save, remove, loadCacheAgentes, saveCacheAgentes, podar } from "./lib/storage.js";
 
 export default function App() {
@@ -39,6 +40,11 @@ export default function App() {
 
   useEffect(() => { save(K.DRAFTS, drafts); }, [drafts]);
   useEffect(() => { save(K.SENT, sent); }, [sent]);
+
+  /* La lista vigente, para poder consultarla desde una función asíncrona sin
+     depender de cuándo se ejecute el actualizador de estado. */
+  const sentRef = useRef(sent);
+  useEffect(() => { sentRef.current = sent; }, [sent]);
 
   /* El seguro contra perder una ficha a medio rellenar. */
   useAutosave(K.BORRADOR_ACTIVO, ficha, { activo: !!agente });
@@ -123,6 +129,56 @@ export default function App() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin, sent, agente?.id, toast]);
+
+  /* ---------------- Recuperar el historial de la oficina ----------------
+     El historial es de este móvil, y eso falla más de lo que parece: un
+     teléfono nuevo, o el navegador limpiando su almacenamiento, dejaban al
+     agente sin ver captaciones que la oficina sí tiene. Se pide al elegir
+     agente y con el botón del historial. */
+  const recuperarHistorial = useCallback(
+    async (silencioso = true) => {
+      if (!pin || !agente?.id) return { ok: false };
+      const r = await pedirMisFichas(pin, agente.id);
+      if (!r.ok) {
+        if (!silencioso) toast("No se pudo consultar la oficina. Inténtalo luego.", "error");
+        return r;
+      }
+
+      /* La cuenta se hace ANTES de tocar el estado. Hacerla dentro del
+         actualizador de setSent no vale: se ejecuta más tarde, así que el
+         aviso leía siempre cero y el agente no se enteraba de que se le había
+         recuperado el historial. `sentRef` guarda la lista vigente. */
+      const previas = sentRef.current;
+      const conocidas = new Set(previas.map((f) => f.id));
+      const recuperadas = r.fichas.filter((f) => !conocidas.has(f.id)).length;
+      setSent(podar(unirHistorial(previas, r.fichas)));
+
+      /* Solo se dice algo cuando aparece algo: si el móvil ya las tenía todas,
+         un aviso de "0 recuperadas" sería ruido. */
+      if (recuperadas) {
+        toast(
+          recuperadas === 1
+            ? "Se ha recuperado 1 ficha de la oficina"
+            : `Se han recuperado ${recuperadas} fichas de la oficina`,
+          "info",
+          5000
+        );
+      } else if (!silencioso) {
+        toast("Tu historial ya está al día");
+      }
+      return { ok: true, recuperadas };
+    },
+    [pin, agente?.id, toast]
+  );
+
+  /* Al elegir agente, una vez. No en cada vuelta a la app: trae las fichas
+     completas y no hace falta tan a menudo. */
+  const recuperadoPara = useRef(null);
+  useEffect(() => {
+    if (!pin || !agente?.id || recuperadoPara.current === agente.id) return;
+    recuperadoPara.current = agente.id;
+    recuperarHistorial(true);
+  }, [pin, agente?.id, recuperarHistorial]);
 
   /* El listener de abajo se registra una sola vez, así que sin esto se quedaría
      llamando a la primera versión de sincronizarFases, con la lista de fichas
@@ -339,7 +395,12 @@ export default function App() {
           drafts={drafts}
           sent={sent}
           enCola={enCola}
-          onSincronizarFases={sincronizarFases}
+          onSincronizarFases={async () => {
+            /* Un solo botón para el agente: pone al día las fases y, además,
+               trae lo que la oficina tenga y a este móvil le falte. */
+            await recuperarHistorial(false);
+            await sincronizarFases();
+          }}
           onOpenDraft={openDraft}
           onReintentar={reintentar}
           onSincronizar={() => vaciarCola(false)}
