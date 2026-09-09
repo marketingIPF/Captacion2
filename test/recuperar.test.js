@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unirHistorial } from "../src/lib/recuperar.js";
+import { podarHistorial, MAX_HISTORIAL } from "../src/lib/storage.js";
 
 const local = (id, extra = {}) => ({
   id, agenteId: "eva-valles", agenteName: "Eva Vallés",
@@ -75,4 +76,52 @@ test("una lista vacía de la oficina no borra el historial del móvil", () => {
   const mios = [local("a"), local("b")];
   assert.deepEqual(unirHistorial(mios, []).map((f) => f.id), ["a", "b"]);
   assert.deepEqual(unirHistorial(mios, null).map((f) => f.id), ["a", "b"]);
+});
+
+/* ── El recorte del historial ──────────────────────────────────────────── */
+
+const enviada = (n) => local(`e${n}`, { fecha: `2026-09-${String(n).padStart(2, "0")}T10:00:00.000Z` });
+
+test("el historial se queda en las últimas 15", () => {
+  const veinte = Array.from({ length: 20 }, (_, i) => enviada(i + 1));
+  const r = podarHistorial(veinte);
+  assert.equal(r.length, MAX_HISTORIAL);
+  assert.equal(r[0].id, "e6", "se van las más antiguas");
+  assert.equal(r.at(-1).id, "e20", "y se queda la última");
+});
+
+test("una ficha sin enviar NO se descarta por antigua", () => {
+  /* Con el tope en 100 esto era casi imposible; con 15, un agente que haga una
+     tanda sin cobertura habría perdido de vista la primera. Solo existe en su
+     móvil hasta que la cola la manda. */
+  const enCola = local("en-cola", { envio: { estado: "pendiente" }, fecha: "2026-09-01T08:00:00.000Z" });
+  const lista = [enCola, ...Array.from({ length: 20 }, (_, i) => enviada(i + 1))];
+  const r = podarHistorial(lista);
+
+  assert.ok(r.some((f) => f.id === "en-cola"), "se ha tirado una ficha que no ha llegado a la oficina");
+  assert.equal(r.filter((f) => f.envio.estado === "enviada").length, MAX_HISTORIAL, "y el tope se respeta con las que sí llegaron");
+  assert.equal(r[0].id, "en-cola", "sin desordenar la lista");
+});
+
+test("una rechazada tampoco se descarta", () => {
+  /* El agente tiene que poder verla para reintentarla. */
+  const fallida = local("fallida", { envio: { estado: "rechazada", error: "algo" }, fecha: "2026-09-01T08:00:00.000Z" });
+  const r = podarHistorial([fallida, ...Array.from({ length: 20 }, (_, i) => enviada(i + 1))]);
+  assert.ok(r.some((f) => f.id === "fallida"));
+});
+
+test("con menos de 15 no se toca nada", () => {
+  const tres = [enviada(1), enviada(2), enviada(3)];
+  assert.deepEqual(podarHistorial(tres), tres);
+});
+
+test("recuperar de la oficina no desborda el historial", () => {
+  /* La oficina manda como mucho 15, y el móvil puede tener alguna en cola que
+     ella no conoce: el total puede pasar de 15 y eso está bien. */
+  const enCola = local("en-cola", { envio: { estado: "pendiente" }, fecha: "2026-09-30T10:00:00.000Z" });
+  const oficina = Array.from({ length: 15 }, (_, i) => remota(`o${i}`, { fecha: `2026-09-${String(i + 1).padStart(2, "0")}T10:00:00.000Z` }));
+  const r = podarHistorial(unirHistorial([enCola], oficina));
+
+  assert.equal(r.filter((f) => f.envio.estado === "enviada").length, 15);
+  assert.ok(r.some((f) => f.id === "en-cola"));
 });

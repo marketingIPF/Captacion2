@@ -70,6 +70,28 @@ export function loadCacheAgentes() {
 export const saveCacheAgentes = (data) => save(K.CACHE, { ...data, guardadoEn: Date.now() });
 
 /* El historial no puede crecer sin límite: localStorage ronda los 5 MB y
-   además son datos personales que no deben vivir para siempre en el móvil. */
-export const MAX_HISTORIAL = 100;
-export const podar = (lista) => lista.slice(-MAX_HISTORIAL);
+   además son datos personales que no deben vivir para siempre en el móvil.
+   Al agente le basta con tener a la vista sus últimas captaciones; las de
+   antes están en la oficina, que es donde tienen que estar. */
+export const MAX_HISTORIAL = 15;
+
+/* Los borradores aguantan más porque son trabajo SIN ENVIAR: tirar uno es
+   perder algo que solo existe en ese móvil. El tope está para que la lista no
+   crezca sin fin, no para recortar de verdad. */
+export const MAX_BORRADORES = 50;
+
+export const podar = (lista, max = MAX_BORRADORES) => lista.slice(-max);
+
+/* Recorta el historial de enviadas, pero NUNCA descarta una ficha que todavía
+   no está en la oficina.
+
+   `slice` a secas serviría si todas hubieran llegado, pero una ficha en cola
+   —hecha sin cobertura— solo existe en este móvil hasta que sale. Con el tope
+   en 100 era casi imposible que se cayera; con 15, un agente que haga una
+   tanda sin cobertura la habría perdido de vista. Se conserva el orden. */
+export function podarHistorial(lista, max = MAX_HISTORIAL) {
+  const enviadas = lista.filter((f) => f.envio?.estado === "enviada");
+  if (enviadas.length <= max) return lista;
+  const sobran = new Set(enviadas.slice(0, enviadas.length - max).map((f) => f.id));
+  return lista.filter((f) => !sobran.has(f.id));
+}

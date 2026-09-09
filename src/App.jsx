@@ -12,7 +12,7 @@ import { fichaVacia } from "./lib/ficha.js";
 import { enviarAlServidor, encolar, desencolar, pendientes, procesarCola } from "./lib/cola.js";
 import { consultarEstados } from "./lib/estados.js";
 import { pedirMisFichas, unirHistorial } from "./lib/recuperar.js";
-import { K, load, save, remove, loadCacheAgentes, saveCacheAgentes, podar } from "./lib/storage.js";
+import { K, load, save, remove, loadCacheAgentes, saveCacheAgentes, podar, podarHistorial } from "./lib/storage.js";
 
 export default function App() {
   const [agentesData, setAgentesData] = useState(loadCacheAgentes);
@@ -151,7 +151,7 @@ export default function App() {
       const previas = sentRef.current;
       const conocidas = new Set(previas.map((f) => f.id));
       const recuperadas = r.fichas.filter((f) => !conocidas.has(f.id)).length;
-      setSent(podar(unirHistorial(previas, r.fichas)));
+      setSent(podarHistorial(unirHistorial(previas, r.fichas)));
 
       /* Solo se dice algo cuando aparece algo: si el móvil ya las tenía todas,
          un aviso de "0 recuperadas" sería ruido. */
@@ -293,7 +293,7 @@ export default function App() {
 
   const onEnviada = useCallback(
     (f, envio) => {
-      setSent((p) => podar([...p.filter((x) => x.id !== f.id), { ...f, fecha: new Date().toISOString(), envio }]));
+      setSent((p) => podarHistorial([...p.filter((x) => x.id !== f.id), { ...f, fecha: new Date().toISOString(), envio }]));
       setDrafts((p) => p.filter((d) => d.id !== f.id));
       setEnCola(pendientes());
       setTimeout(() => {

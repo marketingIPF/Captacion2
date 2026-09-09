@@ -47,7 +47,9 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
     <div className="min-h-screen bg-ios-fondo pb-[calc(env(safe-area-inset-bottom)+96px)]">
       <header className="px-6 pt-14 pb-2">
         <h1 className="text-[30px] font-extrabold text-ios-texto">Historial</h1>
-        <p className="text-ios-texto2 text-[15px]">Fichas guardadas en este dispositivo</p>
+        {/* Ya no son "las de este dispositivo": se recuperan de la oficina, así
+            que la lista es la misma en cualquier teléfono. */}
+        <p className="text-ios-texto2 text-[15px]">Tus últimas captaciones</p>
       </header>
 
       {enCola > 0 && (

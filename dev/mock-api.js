@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import { repartir } from "../api/estado.js";
 import { fichaAFilaDeOficina } from "../api/_ficha.js";
+import { MAX_FICHAS } from "../api/mis-fichas.js";
 import { CLAVES_FASE } from "../src/lib/fases.js";
 
 const PIN_ACCESO = "agentes-2026";
@@ -316,9 +317,12 @@ export function mockApi() {
         if (ruta === "/api/mis-fichas") {
           if (body.pin !== PIN_ACCESO) return responder(res, 401, { error: "PIN incorrecto" });
           if (!body.agenteId) return responder(res, 400, { error: "Falta el agente" });
+          /* El mismo tope que el endpoint real, importado de él: si el
+             simulador devolviera más, probar el recorte aquí no valdría. */
           const suyas = [...fichas.values()]
             .filter((f) => f.agente_id === body.agenteId && !f.eliminada_en)
-            .sort((a, b) => String(a.recibida_en).localeCompare(String(b.recibida_en)));
+            .sort((a, b) => String(a.recibida_en).localeCompare(String(b.recibida_en)))
+            .slice(-MAX_FICHAS);
           /* Mismos campos que el endpoint real: sin la nota interna ni el
              rastro de quién editó desde el panel. */
           return responder(res, 200, {

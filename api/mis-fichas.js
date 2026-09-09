@@ -24,7 +24,10 @@ import { db } from "./_db.js";
    desde el panel. La nota se llama interna porque lo es; el agente necesita
    sus datos y en qué fase va, no las anotaciones de seguimiento de Julia.   */
 
-const MAX_FICHAS = 100;
+/* Las que el móvil va a conservar (MAX_HISTORIAL en src/lib/storage.js).
+   Pedir más sería tráfico y datos personales que el teléfono descarta al
+   llegar. */
+export const MAX_FICHAS = 15;
 
 export default async function handler(req, res) {
   const body = autorizar(req, res, "PIN_ACCESO");
