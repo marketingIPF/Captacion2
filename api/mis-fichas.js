@@ -80,5 +80,8 @@ const paraElAgente = (row) => ({
   data: row.datos || {},
   propietarios: row.propietarios || [],
   fase: row.estado,
+  /* Para que el móvil escriba la fecha con la precisión que se sabe: de una
+     tecleada en la oficina solo se conoce el día. */
+  origen: row.origen || "agente",
   envio: { estado: "enviada", envios: row.envios ?? 1 },
 });

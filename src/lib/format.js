@@ -5,6 +5,25 @@ export const fmtFecha = (iso) =>
     day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 
+/* Solo el día, sin hora. */
+export const fmtDia = (iso) =>
+  new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+
+/* Cuándo entró una captación, escrito con la precisión que de verdad se sabe.
+
+   De una que llega del móvil se sabe el minuto. De una que teclea la oficina
+   solo se sabe el día: el formulario pide una fecha y nada más. Guardarla al
+   mediodía y luego pintar esa hora hacía que todas las que añadió Julia una
+   mañana salieran "a las 14:00", una hora que no había ocurrido todavía.
+
+   La regla vive aquí y no en cada pantalla para que el listado, la ficha, el
+   CSV y el papel no puedan discrepar. */
+export const fechaDeFicha = (f) => {
+  const cuando = f?.recibida ?? f?.fecha;
+  if (!cuando) return "";
+  return f?.origen === "oficina" ? fmtDia(cuando) : fmtFecha(cuando);
+};
+
 export const fmtPrecio = (v) => {
   const n = typeof v === "number" ? v : parseNumero(v);
   if (n == null) return "—";

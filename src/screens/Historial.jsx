@@ -146,7 +146,7 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
                     <div className="text-[12.5px] text-ios-texto2 truncate">{subtituloDeFicha(f)}</div>
                   )}
                   <div className="text-[13px] text-ios-texto2 truncate">
-                    {f.agenteName} · {fmtFecha(f.fecha)}
+                    {f.agenteName} · {fechaDeFicha(f)}
                   </div>
                   {!esBorrador && estadoEnvio === "pendiente" && (
                     <div className="text-[11.5px] text-amber-700 font-semibold flex items-center gap-1 mt-0.5">

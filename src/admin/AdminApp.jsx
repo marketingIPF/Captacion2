@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff, Plus } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
-import { fmtFecha, fmtPrecio, nombreCorto } from "../lib/format.js";
+import { fmtPrecio, nombreCorto, fechaDeFicha } from "../lib/format.js";
 import { nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
 import { llamar, ESTADOS, estadoDe } from "./api.js";
 import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl, tokenDeSesion } from "./auth.js";
@@ -138,7 +138,7 @@ export function AdminApp() {
     const cab = ["Recibida", "Agente", "Estado", "Operación", "Tipo", "Referencia", "Dirección", "Población", "Precio"];
     const escapar = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const filas = todas.map((f) =>
-      [fmtFecha(f.recibida), f.agenteName, estadoDe(f.estado).label, f.operacion, f.tipo, f.referencia, f.direccion, f.poblacion, f.precio]
+      [fechaDeFicha(f), f.agenteName, estadoDe(f.estado).label, f.operacion, f.tipo, f.referencia, f.direccion, f.poblacion, f.precio]
         .map(escapar).join(";")
     );
     /* BOM para que Excel en español abra los acentos bien. */
@@ -432,7 +432,7 @@ export function AdminApp() {
                           </div>
                         ) : (
                           <div className="text-[13px] text-ios-texto2 dark:text-ios-texto2-osc">
-                            {fmtFecha(f.recibida)}
+                            {fechaDeFicha(f)}
                           </div>
                         )}
                         {/* Que la teclearon aquí explica que le falten datos.

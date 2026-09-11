@@ -141,3 +141,47 @@ test("una sección que solo tendría filas vacías no se pinta", async () => {
     );
   }
 });
+
+/* ── La fecha se escribe con la precisión que se sabe ───────────────────── */
+
+test("de una captación del móvil se dice la hora; de una tecleada, solo el día", async () => {
+  /* Guardábamos las tecleadas al mediodía UTC y pintábamos esa hora: todas las
+     que Julia añadió una mañana salían "a las 14:00", una hora que aún no
+     había llegado. La hora no se sabe, así que no se enseña. */
+  const { fechaDeFicha } = await import("../src/lib/format.js");
+  const cuando = "2026-09-11T12:00:00.000Z";
+
+  const delAgente = fechaDeFicha({ recibida: cuando, origen: "agente" });
+  const deLaOficina = fechaDeFicha({ recibida: cuando, origen: "oficina" });
+
+  assert.match(delAgente, /\d{2}:\d{2}/, "de una del móvil sí se sabe el minuto");
+  assert.doesNotMatch(deLaOficina, /\d{2}:\d{2}/, "de una tecleada se está inventando una hora");
+  assert.ok(deLaOficina.includes("sept"), `debería seguir diciendo el día: ${deLaOficina}`);
+  assert.ok(delAgente.startsWith(deLaOficina), "y el día tiene que ser el mismo");
+});
+
+test("vale tanto para la ficha del panel como para la del móvil", async () => {
+  /* Una trae `recibida` y la otra `fecha`. Confundirlas es lo que hacía que el
+     texto copiado dijera "Invalid Date". */
+  const { fechaDeFicha } = await import("../src/lib/format.js");
+  assert.equal(
+    fechaDeFicha({ recibida: "2026-09-11T09:30:00.000Z" }),
+    fechaDeFicha({ fecha: "2026-09-11T09:30:00.000Z" })
+  );
+  assert.equal(fechaDeFicha({}), "", "sin fecha no se escribe nada raro");
+});
+
+test("el texto que copia la oficina no dice Invalid Date", async () => {
+  const { textoFicha } = await import("../src/lib/resumen.js");
+  /* La forma que devuelve el panel: `recibida`, no `fecha`. */
+  const delPanel = {
+    agenteName: "Mª Luisa Bellver",
+    recibida: "2026-09-11T12:00:00.000Z",
+    origen: "oficina",
+    propietarios: [],
+    data: { operacion: "Venta", tipo: "Piso", direccion: "Migdia 4", precio: "568000" },
+  };
+  const texto = textoFicha(delPanel);
+  assert.doesNotMatch(texto, /Invalid Date/);
+  assert.match(texto, /Fecha: \d{2} \w+ 2026/);
+});

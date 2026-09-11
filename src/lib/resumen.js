@@ -1,6 +1,6 @@
 import { SECCIONES } from "../data/secciones.js";
 import { camposAplicables } from "./ficha.js";
-import { fmtFecha, fmtPrecio, fmtNumero } from "./format.js";
+import { fmtPrecio, fmtNumero, fechaDeFicha } from "./format.js";
 
 const valorLegible = (f, v) => {
   if (Array.isArray(v)) return v.join(", ");
@@ -125,7 +125,10 @@ export function textoFicha(ficha) {
     "FICHA DE CAPTACIÓN · RK PALANCA FONTESTAD",
     "=========================================",
     `Agente captador: ${ficha.agenteName}`,
-    `Fecha: ${fmtFecha(ficha.fecha)}`,
+    /* fechaDeFicha() y no fmtFecha(ficha.fecha): la ficha del panel trae
+       `recibida` y no `fecha`, así que esto llevaba desde el principio
+       escribiendo "Fecha: Invalid Date" en el texto que copia la oficina. */
+    `Fecha: ${fechaDeFicha(ficha)}`,
     `Operación: ${ficha.data.operacion || "—"} · Precio: ${fmtPrecio(ficha.data.precio)}`,
     "",
   ];

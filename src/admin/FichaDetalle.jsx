@@ -148,7 +148,7 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
                       <Avatar agente={{ id: ficha.agenteId, name: ficha.agenteName }} tam={20} />
                       <ValorCopiable valor={ficha.agenteName} clave="agente" copiar={copiar} copiado={copiado} etiqueta="el agente" />
                       <span aria-hidden="true">·</span>
-                      <ValorCopiable valor={fmtFecha(ficha.recibida)} clave="fecha" copiar={copiar} copiado={copiado} etiqueta="la fecha" className="whitespace-nowrap" />
+                      <ValorCopiable valor={fechaDeFicha(ficha)} clave="fecha" copiar={copiar} copiado={copiado} etiqueta="la fecha" className="whitespace-nowrap" />
                       {ficha.origen === "oficina" && (
                         /* Aquí sí cabe el nombre completo: es la cabecera de la
                            ficha, no una celda de tabla. */

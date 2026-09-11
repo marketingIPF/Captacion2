@@ -130,7 +130,7 @@ export function FichaImprimible({ ficha }) {
     <div className="solo-impresion">
       <Cabecera
         titulo={tituloFicha(ficha)}
-        subtitulo={`${d.referencia ? `Ref. ${d.referencia} · ` : ""}Captada por ${ficha.agenteName} · ${fmtFecha(ficha.recibida)}`}
+        subtitulo={`${d.referencia ? `Ref. ${d.referencia} · ` : ""}Captada por ${ficha.agenteName} · ${fechaDeFicha(ficha)}`}
       />
 
       {/* Cabecera de datos: lo que se mira primero */}
