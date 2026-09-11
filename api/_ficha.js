@@ -134,6 +134,9 @@ export const filaAFicha = (row) => ({
 export const filaAResumen = (row) => ({
   id: row.id,
   recibida: row.recibida_en,
+  /* Cuándo se tecleó, que en las de oficina no es lo mismo que cuándo ocurrió
+     la captación. El listado lo necesita para saber si puede decir la hora. */
+  creada: row.creada_en,
   corregida: row.corregida_en || null,
   envios: row.envios ?? 1,
   /* El id permite pintar el avatar; no revela nada que no muestre ya el

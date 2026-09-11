@@ -262,6 +262,7 @@ const resumenDe = (f) => ({
   agenteName: f.agente_nombre,
   estado: f.estado,
   origen: f.origen || "agente",
+  creada: f.creada_en,
   creadaPor: f.creada_por || null,
   creadaPorNombre: f.creada_por_nombre || null,
   operacion: f.operacion,
@@ -496,7 +497,9 @@ export function mockApi() {
               : new Date().toISOString();
             const f = {
               ...fila,
-              creada_en: recibida,
+              /* Como en producción: `creada_en` es cuándo se teclea (ahora) y
+                 `recibida_en` cuándo ocurrió la captación (lo que se elige). */
+              creada_en: new Date().toISOString(),
               recibida_en: recibida,
               actualizada_en: new Date().toISOString(),
               actualizada_por: "julia@inmobiliariapalanca.com",

@@ -144,7 +144,33 @@ test("una sección que solo tendría filas vacías no se pinta", async () => {
 
 /* ── La fecha se escribe con la precisión que se sabe ───────────────────── */
 
-test("de una captación del móvil se dice la hora; de una tecleada, solo el día", async () => {
+test("de una tecleada HOY se dice la hora a la que se tecleó", async () => {
+  /* Es lo que pidió Roberto: si Julia la mete esta mañana, ver a qué hora la
+     metió. Se sabe con exactitud, así que se dice. */
+  const { fechaDeFicha } = await import("../src/lib/format.js");
+  const r = fechaDeFicha({
+    origen: "oficina",
+    recibida: "2026-09-11T12:00:00.000Z",  // el día que ella eligió
+    creada: "2026-09-11T08:45:00.000Z",    // cuando la tecleó de verdad
+  });
+  assert.match(r, /\d{2}:\d{2}/, "hoy sí se sabe la hora");
+  assert.ok(!r.includes("14:00"), `no puede salir el mediodía inventado: ${r}`);
+});
+
+test("de una tecleada con fecha ANTIGUA solo se dice el día", async () => {
+  /* De una captación de 2019 no se sabe a qué hora fue; la hora a la que Julia
+     la teclea hoy no es la hora de aquella captación. */
+  const { fechaDeFicha } = await import("../src/lib/format.js");
+  const r = fechaDeFicha({
+    origen: "oficina",
+    recibida: "2019-04-23T12:00:00.000Z",
+    creada: "2026-09-11T08:45:00.000Z",
+  });
+  assert.doesNotMatch(r, /\d{2}:\d{2}/);
+  assert.ok(r.includes("2019"), `tiene que ser la fecha de la captación: ${r}`);
+});
+
+test("de una captación del móvil se dice la hora; de una tecleada sin más datos, solo el día", async () => {
   /* Guardábamos las tecleadas al mediodía UTC y pintábamos esa hora: todas las
      que Julia añadió una mañana salían "a las 14:00", una hora que aún no
      había llegado. La hora no se sabe, así que no se enseña. */

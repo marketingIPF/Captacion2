@@ -53,8 +53,8 @@ export async function listar(sql, body, res) {
 
   const filas = await sql`
     select id, recibida_en, corregida_en, envios, agente_id, agente_nombre,
-           estado, origen, creada_por, creada_por_nombre, operacion, tipo,
-           referencia, direccion, numero, poblacion, precio, nota_oficina
+           estado, origen, creada_en, creada_por, creada_por_nombre, operacion,
+           tipo, referencia, direccion, numero, poblacion, precio, nota_oficina
     from fichas
     where eliminada_en is null
       and (${estado}::text is null or estado = ${estado})
@@ -210,7 +210,12 @@ export function agentes(res) {
      su propia captación.
    - `recibida_en` es la fecha que ella indique, no hoy. Si fueran todas de
      hoy, cuarenta captaciones antiguas aparecerían como "últimos 30 días" y
-     el panel diría algo falso. */
+     el panel diría algo falso.
+
+   Son dos cosas distintas y por eso van en dos columnas: `recibida_en` es
+   CUÁNDO OCURRIÓ la captación —lo que ella escribe, puede ser de 2019— y
+   `creada_en` es CUÁNDO SE TECLEÓ, que se sabe con exactitud porque es ahora.
+   Mezclarlas era lo que hacía que todas salieran a una hora inventada.      */
 export async function crear(sql, body, res, usuario) {
   const { ok, fila, error } = fichaAFilaDeOficina(body.ficha);
   if (!ok) return res.status(400).json({ error });
@@ -225,7 +230,7 @@ export async function crear(sql, body, res, usuario) {
       datos, propietarios, estado, origen, envios, actualizada_por,
       creada_por, creada_por_nombre
     ) values (
-      ${fila.id}, ${recibida}, ${recibida}, ${fila.agente_id}, ${fila.agente_nombre},
+      ${fila.id}, now(), ${recibida}, ${fila.agente_id}, ${fila.agente_nombre},
       ${fila.operacion}, ${fila.tipo}, ${fila.referencia}, ${fila.direccion},
       ${fila.numero}, ${fila.poblacion}, ${fila.provincia}, ${fila.cp}, ${fila.precio},
       ${JSON.stringify(fila.datos)}, ${JSON.stringify(fila.propietarios)},
