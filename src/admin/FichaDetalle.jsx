@@ -3,7 +3,7 @@ import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, Pencil, Pr
 import {
   bloquesFicha, bloqueComoTexto, textoFicha, tituloFicha, direccionCompleta, cifrasClave,
 } from "../lib/resumen.js";
-import { fmtFecha, fmtPrecio } from "../lib/format.js";
+import { fmtFecha, fmtPrecio, fechaDeFicha } from "../lib/format.js";
 import { TIPOS_INMUEBLE } from "../data/tipos.js";
 import { Avatar } from "../components/Avatar.jsx";
 import { llamar, ESTADOS } from "./api.js";

@@ -148,3 +148,29 @@ test("la base de datos acepta exactamente las fases que existen", () => {
     "db/schema.sql y fases.js no cuadran: falta una migración o falta una fase"
   );
 });
+
+test("una captación tecleada hoy se guarda a la hora real, no al mediodía", async () => {
+  /* Con el mediodía, una tecleada a las 10:00 quedaba marcada a las 14:00 y se
+     colaba por encima de las que llegaban de verdad esa mañana: el listado
+     enterraba las nuevas bajo las de la oficina. */
+  const { fechaSuelta } = await import("../api/admin.js");
+  const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
+  const t = Date.parse(fechaSuelta(hoy));
+
+  assert.ok(Math.abs(Date.now() - t) < 5000, "debería ser ahora mismo");
+  assert.ok(t <= Date.now(), "y nunca una hora que no ha llegado");
+});
+
+test("con fecha pasada se mantiene el día, sin inventar hora", async () => {
+  const { fechaSuelta } = await import("../api/admin.js");
+  const r = fechaSuelta("2019-04-23");
+  assert.equal(new Date(r).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" }), "23/4/2019");
+  assert.ok(Date.parse(r) < Date.now(), "un día que ya pasó no puede adelantar a nada");
+});
+
+test("una fecha ilegible no se cuela", async () => {
+  const { fechaSuelta } = await import("../api/admin.js");
+  for (const v of ["", "   ", "ayer", null, undefined, 20190423]) {
+    assert.equal(fechaSuelta(v), null, `«${v}» debería rechazarse`);
+  }
+});

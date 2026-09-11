@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { bloquesFicha, direccionCompleta, cifrasClave, tituloFicha, nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
-import { fmtFecha, fmtPrecio } from "../lib/format.js";
+import { fmtFecha, fmtPrecio, fechaDeFicha } from "../lib/format.js";
 import { estadoDe } from "./api.js";
 
 const hoy = () =>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Home, Trash2, Send, Pencil, Loader2, AlertCircle, Search, CloudOff, RefreshCw, CheckCircle2, PencilLine } from "lucide-react";
 import { TIPOS_INMUEBLE } from "../data/tipos.js";
-import { fmtFecha, fmtPrecio } from "../lib/format.js";
+import { fmtPrecio, fechaDeFicha } from "../lib/format.js";
 import { nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
 import { faseDe } from "../lib/estados.js";
 

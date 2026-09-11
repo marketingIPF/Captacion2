@@ -244,11 +244,31 @@ export async function crear(sql, body, res, usuario) {
   res.status(200).json({ ok: true, ficha: filaAFicha(row) });
 }
 
-/* Solo la fecha (2019-04-23) o un ISO completo. Devuelve null si no se puede
-   leer, para que quien llame decida qué poner. */
-function fechaSuelta(v) {
+/* El día de España, para saber si la fecha que escribe la oficina es hoy. */
+const hoyEnEspana = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
+
+/* Cuándo entró la captación, a partir de lo que escribe la oficina.
+
+   Si pone HOY, se guarda el instante real: es cuando ha entrado, se sabe al
+   segundo, y así ordena donde le toca. Guardarla al mediodía hacía que una
+   captación tecleada a las 10:00 quedara marcada a las 14:00 y se colara por
+   ENCIMA de las que llegaban de verdad esa mañana: el muro enterraba las
+   nuevas bajo las de la oficina.
+
+   Si pone una fecha pasada, de aquel día no se sabe la hora. Se deja al
+   mediodía, que mantiene el día estable en cualquier huso y —por ser un día
+   que ya terminó— no puede adelantar a nada.
+
+   Devuelve null si no se puede leer, para que quien llame decida qué poner. */
+export function fechaSuelta(v) {
   if (typeof v !== "string" || !v.trim()) return null;
-  const t = Date.parse(v.length === 10 ? `${v}T12:00:00Z` : v);
+  if (v.length === 10) {
+    if (v === hoyEnEspana()) return new Date().toISOString();
+    const t = Date.parse(`${v}T12:00:00Z`);
+    return Number.isFinite(t) ? new Date(t).toISOString() : null;
+  }
+  const t = Date.parse(v);
   return Number.isFinite(t) ? new Date(t).toISOString() : null;
 }
 
