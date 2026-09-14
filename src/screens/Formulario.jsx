@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ChevronDown, Send, Save, User, AlertCircle, Check } from "lucide-react";
+import { ChevronDown, Send, Save, User, AlertCircle, Check, Trash2 } from "lucide-react";
 import { SECCIONES } from "../data/secciones.js";
 import { camposAplicables, calcularProgreso, revisarFicha, seccionAplica } from "../lib/ficha.js";
 import { validarCampo, normalizarReferencia } from "../lib/validacion.js";
@@ -18,7 +18,7 @@ import { Propietarios } from "../components/Propietarios.jsx";
 import { PreviewModal } from "./PreviewModal.jsx";
 import { useToast } from "../hooks/useToast.jsx";
 
-export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft, onEnviada, onChangeAgent, esCorreccion = false }) {
+export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft, onEnviada, onChangeAgent, onDescartar, esCorreccion = false }) {
   const [abierta, setAbierta] = useState("ident");
   const refSeccion = useRef({});   // la tarjeta de cada sección
   const refPanel = useRef({});     // su contenido plegable
@@ -26,6 +26,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
   const [preview, setPreview] = useState(false);
   const [tocados, setTocados] = useState({});
   const [mostrarErrores, setMostrarErrores] = useState(false);
+  const [confirmarDescarte, setConfirmarDescarte] = useState(false);
   const toast = useToast();
 
   const setData = useCallback(
@@ -151,6 +152,12 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
     onSaveDraft();
     toast("Borrador guardado");
   };
+
+  /* El botón solo aparece si hay algo escrito: ofrecer "descartar" sobre un
+     formulario vacío es ruido. */
+  const hayAlgoEscrito =
+    Object.values(ficha.data || {}).some((v) => (Array.isArray(v) ? v.length : String(v ?? "").trim())) ||
+    (ficha.propietarios || []).some((p) => Object.values(p || {}).some((v) => String(v ?? "").trim()));
 
   return (
     <div className="min-h-screen bg-ios-fondo pb-[calc(env(safe-area-inset-bottom)+96px)]">
@@ -366,6 +373,45 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
         >
           <Save size={18} aria-hidden="true" /> Guardar borrador
         </button>
+
+        {hayAlgoEscrito && !confirmarDescarte && (
+          <button
+            type="button"
+            onClick={() => setConfirmarDescarte(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[14px] font-semibold text-ios-texto2 active:scale-95 transition"
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            {esCorreccion ? "Descartar la corrección" : "Descartar esta captación"}
+          </button>
+        )}
+
+        {/* Se pregunta antes porque lo escrito solo existe en este móvil: no
+            hay copia en la oficina que permita deshacerlo. */}
+        {confirmarDescarte && (
+          <div className="rounded-2xl bg-red-50 border border-red-200 p-3.5">
+            <p className="text-[13px] text-red-800 leading-snug mb-3">
+              {esCorreccion
+                ? "Se perderán los cambios de esta corrección. La captación que ya está en la oficina no se toca."
+                : "Se perderá lo que llevas escrito. No se puede deshacer."}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setConfirmarDescarte(false); onDescartar?.(); }}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-[14px] font-bold active:scale-95 transition"
+              >
+                Sí, descartar
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmarDescarte(false)}
+                className="flex-1 py-2.5 rounded-xl bg-white border border-ios-borde text-[14px] font-semibold text-gray-700 active:scale-95 transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
         <p className="text-center text-[11.5px] text-ios-texto2 flex items-center justify-center gap-1.5">
           <Check size={13} className="text-green-600" aria-hidden="true" />
           Se guarda solo mientras escribes

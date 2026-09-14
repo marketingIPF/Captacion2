@@ -350,6 +350,25 @@ export default function App() {
     toast("Ficha eliminada", "info");
   };
 
+  /* Descartar la captación que está a medias en el formulario.
+
+     Los agentes empiezan captaciones que luego no salen, y el formulario se
+     autoguarda: sin esto, esa ficha a medias reaparecía cada vez que abrían la
+     app y la única salida era "borrar los datos de este dispositivo" en
+     Perfil, que además se lleva por delante el historial.
+
+     Si venía de Borradores, se quita también de ahí: dejar una copia sería
+     descartarla solo a medias. Si es la CORRECCIÓN de una ficha que ya está en
+     la oficina, se abandona la corrección y nada más — esa captación existe y
+     no es el agente quien la borra. */
+  const descartarFicha = useCallback(() => {
+    const eraCorreccion = sent.some((x) => x.id === ficha.id);
+    setDrafts((p) => p.filter((d) => d.id !== ficha.id));
+    remove(K.BORRADOR_ACTIVO);
+    setFicha(fichaVacia(agente));
+    toast(eraCorreccion ? "Corrección descartada" : "Captación descartada", "info");
+  }, [sent, ficha.id, agente, toast]);
+
   const borrarTodo = () => {
     setDrafts([]);
     setSent([]);
@@ -388,6 +407,7 @@ export default function App() {
           onEnviada={onEnviada}
           onChangeAgent={setAgenteActivo}
           esCorreccion={corrigiendo}
+          onDescartar={descartarFicha}
         />
       )}
       {tab === "historial" && (
