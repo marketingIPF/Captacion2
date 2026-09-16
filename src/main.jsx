@@ -13,7 +13,11 @@ const esAdmin = window.location.pathname.replace(/\/+$/, "").toLowerCase() === "
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     {esAdmin ? (
-      <AdminApp />
+      /* El panel no tenía forma de decir nada: guardar una captación no
+         confirmaba nada y parecía que no había pasado. */
+      <ToastProvider hueco={24}>
+        <AdminApp />
+      </ToastProvider>
     ) : (
       <ToastProvider>
         <div className="max-w-md mx-auto min-h-screen relative bg-ios-fondo">

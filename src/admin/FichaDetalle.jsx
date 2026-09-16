@@ -4,6 +4,7 @@ import {
   bloquesFicha, bloqueComoTexto, textoFicha, tituloFicha, direccionCompleta, cifrasClave,
 } from "../lib/resumen.js";
 import { fmtFecha, fmtPrecio, fechaDeFicha } from "../lib/format.js";
+import { useToast } from "../hooks/useToast.jsx";
 import { TIPOS_INMUEBLE } from "../data/tipos.js";
 import { Avatar } from "../components/Avatar.jsx";
 import { llamar, ESTADOS } from "./api.js";
@@ -26,6 +27,7 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
   const panel = useRef(null);
   const campoNota = useRef(null);
   const { copiar, copiado, error: errorCopia } = useCopiar();
+  const toast = useToast();
 
   useEffect(() => {
     let vivo = true;
@@ -234,6 +236,9 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
                   /* El listado muestra dirección, precio y estado: si cambian
                      hay que refrescarlo, no solo esta ficha. */
                   onActualizada?.({ id: actualizada.id, estado: actualizada.estado, recargar: true });
+                  /* Guardar cambios tampoco decía nada: el formulario se
+                     cerraba y había que fiarse. */
+                  toast("Cambios guardados");
                 }}
               />
             ) : (

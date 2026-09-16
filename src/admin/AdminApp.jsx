@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff, Plus, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
-import { fmtPrecio, nombreCorto, fechaDeFicha } from "../lib/format.js";
+import { fmtPrecio, nombreCorto, fechaDeFicha, fmtDia } from "../lib/format.js";
+import { useToast } from "../hooks/useToast.jsx";
 import { nombreDeFicha, subtituloDeFicha } from "../lib/resumen.js";
 import { llamar, ESTADOS, estadoDe } from "./api.js";
 import { useSesion, salir as cerrarSesion, olvidarToken, limpiarUrl, tokenDeSesion } from "./auth.js";
@@ -42,6 +43,7 @@ export function AdminApp() {
      Se recuerda en este navegador: quien trabaja por referencia lo hace todos
      los días, y volver a la fecha en cada recarga obliga a rehacer el mismo
      clic cada mañana. Si lo guardado no se entiende, se usa el de siempre. */
+  const toast = useToast();
   const [orden, setOrden] = useState(() => {
     try {
       const g = JSON.parse(localStorage.getItem(ORDEN_GUARDADO) || "null");
@@ -565,6 +567,20 @@ export function AdminApp() {
                cuando no está ahí sería mentir. */
             cargar();
             setAbierta(f.id);
+
+            /* Y se dice que ha entrado. Sin esto, guardar no confirmaba nada:
+               una captación fechada en julio se archiva al final de la lista,
+               así que Julia volvía, no la veía arriba y la daba por perdida.
+               Cuando la fecha no es la de hoy se dice dónde ha quedado. */
+            const nombre = f.data?.referencia || f.data?.direccion || "La captación";
+            const mismoDia = f.creada && f.recibida && fmtDia(f.creada) === fmtDia(f.recibida);
+            toast(
+              mismoDia
+                ? `${nombre} guardada`
+                : `${nombre} guardada · queda en la lista por su fecha, ${fmtDia(f.recibida)}`,
+              "ok",
+              mismoDia ? 3200 : 6000
+            );
           }}
         />
       )}

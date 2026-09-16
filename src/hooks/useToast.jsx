@@ -10,7 +10,10 @@ const ESTILOS = {
   info: { bg: "#2c2c2ef2", icon: Info, color: "#cf731c" },
 };
 
-export function ToastProvider({ children }) {
+/* `hueco` es el espacio que hay que dejar por debajo. La app del agente tiene
+   la barra de navegación abajo y el aviso no puede taparla; el panel no tiene
+   nada ahí. Antes estaba fijo a 88 px, que era la medida de esa barra. */
+export function ToastProvider({ children, hueco = 88 }) {
   const [items, setItems] = useState([]);
 
   const cerrar = useCallback((id) => setItems((p) => p.filter((t) => t.id !== id)), []);
@@ -31,7 +34,8 @@ export function ToastProvider({ children }) {
     <ToastCtx.Provider value={api}>
       {children}
       <div
-        className="fixed left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)+88px)] z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none"
+        className="fixed left-0 right-0 z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none"
+        style={{ bottom: `calc(env(safe-area-inset-bottom) + ${hueco}px)` }}
         role="status"
         aria-live="polite"
       >
