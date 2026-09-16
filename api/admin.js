@@ -207,7 +207,10 @@ export async function editar(sql, body, res, usuario) {
     data: body.data,
     propietarios,
   });
-  if (!ok) return res.status(400).json({ error });
+  if (!ok) {
+    console.warn(`Edición rechazada (${usuario?.email}): ${error}`);
+    return res.status(400).json({ error });
+  }
 
   const [row] = await sql`
     update fichas set
@@ -262,7 +265,12 @@ export function agentes(res) {
    Mezclarlas era lo que hacía que todas salieran a una hora inventada.      */
 export async function crear(sql, body, res, usuario) {
   const { ok, fila, error } = fichaAFilaDeOficina(body.ficha);
-  if (!ok) return res.status(400).json({ error });
+  if (!ok) {
+    /* Se deja dicho POR QUÉ. Un 400 a secas en el log obliga a adivinar qué
+       falló cuando alguien dice "no me deja guardar". */
+    console.warn(`Captación rechazada (${usuario?.email}): ${error}`);
+    return res.status(400).json({ error });
+  }
 
   const estado = ESTADOS.includes(body.estado) ? body.estado : "nueva";
   const recibida = fechaSuelta(body.recibida) || new Date().toISOString();

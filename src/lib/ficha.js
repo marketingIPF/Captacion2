@@ -1,10 +1,30 @@
 import { SECCIONES } from "../data/secciones.js";
 import { validarCampo, validarDni, validarTelefono, parseNumero } from "./validacion.js";
 
+/* UUID v4 armado a mano, para los navegadores sin crypto.randomUUID.
+
+   El respaldo anterior devolvía algo como "F1758012345678-a1b2c3", que NO es
+   un UUID: el servidor valida el formato y rechazaba la ficha entera. En un
+   navegador sin randomUUID no se podía guardar NADA —ni la oficina desde el
+   panel ni un agente desde el móvil— y el aviso hablaba de un identificador
+   no válido, que no le dice nada a quien está rellenando una captación. */
+export function uuidV4() {
+  const b = new Uint8Array(16);
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(b);
+  } else {
+    /* Último recurso: menos aleatorio, pero un UUID válido es mejor que una
+       ficha que no se puede guardar. */
+    for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+  }
+  b[6] = (b[6] & 0x0f) | 0x40; // versión 4
+  b[8] = (b[8] & 0x3f) | 0x80; // variante RFC 4122
+  const h = [...b].map((n) => n.toString(16).padStart(2, "0"));
+  return `${h.slice(0, 4).join("")}-${h.slice(4, 6).join("")}-${h.slice(6, 8).join("")}-${h.slice(8, 10).join("")}-${h.slice(10).join("")}`;
+}
+
 export const nuevoId = () =>
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `F${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : uuidV4();
 
 export const fichaVacia = (agente) => ({
   id: nuevoId(),

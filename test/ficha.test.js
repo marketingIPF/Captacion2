@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { validarDni, validarTelefono, validarCp, limpiarNumero, parseNumero, validarProspecto } from "../src/lib/validacion.js";
+import { uuidV4 } from "../src/lib/ficha.js";
 
 test("DNI: acepta válidos y rechaza letra incorrecta", () => {
   assert.equal(validarDni("12345678Z"), "");
@@ -70,4 +71,33 @@ test("el prospecto solo acepta cifras", () => {
   assert.match(validarProspecto("Josefina Perez Lucena"), /número/i);
   assert.match(validarProspecto("41 20"), /número/i, "ni con espacios");
   assert.match(validarProspecto("#4120"), /número/i, "esto es una referencia, no un prospecto");
+});
+
+test("el identificador de respaldo es un UUID que el servidor acepta", () => {
+  /* El respaldo anterior devolvía "F1758…-a1b2c3", que no es un UUID: en un
+     navegador sin crypto.randomUUID el servidor rechazaba TODAS las fichas,
+     tanto del panel como del móvil, y nadie podía guardar nada. */
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const generados = new Set();
+  for (let i = 0; i < 500; i++) {
+    const id = uuidV4();
+    assert.match(id, UUID_RE, `no es un UUID válido: ${id}`);
+    assert.equal(id[14], "4", "debe declarar que es versión 4");
+    assert.ok("89ab".includes(id[19].toLowerCase()), `variante incorrecta: ${id}`);
+    generados.add(id);
+  }
+  assert.equal(generados.size, 500, "se han repetido identificadores");
+});
+
+test("el mismo validador del servidor lo da por bueno", async () => {
+  /* Comprobado contra la función de verdad, no contra una copia de su regex. */
+  const { fichaAFilaDeOficina } = await import("../api/_ficha.js");
+  for (let i = 0; i < 50; i++) {
+    assert.equal(fichaAFilaDeOficina({ id: uuidV4(), data: {} }).ok, true);
+  }
+  assert.equal(
+    fichaAFilaDeOficina({ id: "F1758012345678-a1b2c3", data: {} }).ok,
+    false,
+    "el respaldo viejo tiene que seguir siendo inválido, para que se note si vuelve"
+  );
 });
