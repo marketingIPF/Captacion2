@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff, Plus } from "lucide-react";
+import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff, Plus, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { fmtPrecio, nombreCorto, fechaDeFicha } from "../lib/format.js";
@@ -19,6 +19,11 @@ const TINTA_MARCA = "#9c5310";
 
 const POR_PAGINA = 25;
 
+/* Las columnas por las que el servidor sabe ordenar. Se comprueba aquí también
+   para no pedirle un orden que va a rechazar. */
+const ORDENES = ["fecha", "referencia", "precio", "agente"];
+const ORDEN_GUARDADO = "rk2_admin_orden";
+
 export function AdminApp() {
   const { data: sesion, isPending: cargandoSesion } = useSesion();
   const [fichas, setFichas] = useState([]);
@@ -31,6 +36,29 @@ export function AdminApp() {
   const [error, setError] = useState("");
   const [abierta, setAbierta] = useState(null);
   const [creando, setCreando] = useState(false);
+  /* El orden lo resuelve el servidor, no esta pantalla: el listado va paginado
+     y ordenar solo las 25 visibles daría un orden falso.
+
+     Se recuerda en este navegador: quien trabaja por referencia lo hace todos
+     los días, y volver a la fecha en cada recarga obliga a rehacer el mismo
+     clic cada mañana. Si lo guardado no se entiende, se usa el de siempre. */
+  const [orden, setOrden] = useState(() => {
+    try {
+      const g = JSON.parse(localStorage.getItem(ORDEN_GUARDADO) || "null");
+      if (ORDENES.includes(g?.campo) && ["asc", "desc"].includes(g?.sentido)) return g;
+    } catch {
+      /* Un valor ilegible no debe impedir abrir el panel. */
+    }
+    return { campo: "fecha", sentido: "desc" };
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ORDEN_GUARDADO, JSON.stringify(orden));
+    } catch {
+      /* Si el navegador no deja guardar, el panel funciona igual. */
+    }
+  }, [orden]);
   /* Al abrir desde el botón de anotaciones, la ficha va directa a la nota en
      vez de obligar a buscarla entre ocho secciones. */
   const [enfocar, setEnfocar] = useState(null);
@@ -75,6 +103,8 @@ export function AdminApp() {
         llamar("listar", {
           busqueda,
           estado: filtro || undefined,
+          orden: orden.campo,
+          sentido: orden.sentido,
           limite: POR_PAGINA,
           desde: (pagina - 1) * POR_PAGINA + 1,
         }),
@@ -92,7 +122,7 @@ export function AdminApp() {
     } finally {
       setCargando(false);
     }
-  }, [sesion, busqueda, filtro, pagina]);
+  }, [sesion, busqueda, filtro, pagina, orden]);
 
   /* Con la sesión ya establecida, el verificador de la URL sobra. Se limpia
      aquí y no solo en el callback de éxito del cliente, para que no quede en
@@ -107,7 +137,7 @@ export function AdminApp() {
     return () => clearTimeout(t);
   }, [cargar, busqueda]);
 
-  useEffect(() => setPagina(1), [busqueda, filtro]);
+  useEffect(() => setPagina(1), [busqueda, filtro, orden]);
 
   /* Trae el conjunto filtrado COMPLETO, por páginas.
 
@@ -124,6 +154,10 @@ export function AdminApp() {
         desde,
         estado: filtro || undefined,
         busqueda,
+        /* En el mismo orden que se está viendo: un CSV ordenado de otra forma
+           que la pantalla desconcierta a quien acaba de ordenarla. */
+        orden: orden.campo,
+        sentido: orden.sentido,
       });
       acumuladas.push(...r.fichas);
       /* Se para cuando ya están todas, o cuando el servidor deja de devolver:
@@ -131,7 +165,7 @@ export function AdminApp() {
          con lo que se sirve. */
       if (acumuladas.length >= r.total || r.fichas.length < POR_TANDA) return acumuladas;
     }
-  }, [filtro, busqueda]);
+  }, [filtro, busqueda, orden]);
 
   const exportarCsv = async () => {
     const todas = await traerTodas();
@@ -381,10 +415,16 @@ export function AdminApp() {
               <caption className="sr-only">Listado de captaciones recibidas</caption>
               <thead className="bg-ios-fondo dark:bg-ios-elevada-osc/40 text-[11px] uppercase tracking-wide text-ios-texto2 dark:text-ios-texto2-osc">
                 <tr>
-                  <th scope="col" className="px-4 py-2.5 font-bold">Inmueble</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold hidden md:table-cell">Agente</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold hidden sm:table-cell">Última entrada</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold text-right">Precio</th>
+                  <Cabecera campo="referencia" orden={orden} onOrdenar={setOrden}>Inmueble</Cabecera>
+                  <Cabecera campo="agente" orden={orden} onOrdenar={setOrden} className="hidden md:table-cell">
+                    Agente
+                  </Cabecera>
+                  <Cabecera campo="fecha" orden={orden} onOrdenar={setOrden} className="hidden sm:table-cell">
+                    Última entrada
+                  </Cabecera>
+                  <Cabecera campo="precio" orden={orden} onOrdenar={setOrden} alineacion="right">
+                    Precio
+                  </Cabecera>
                   <th scope="col" className="px-4 py-2.5 font-bold">Estado</th>
                   <th scope="col" className="px-2 py-2.5 font-bold w-10">
                     <span className="sr-only">Anotaciones</span>
@@ -542,6 +582,49 @@ export function AdminApp() {
         />
       )}
     </div>
+  );
+}
+
+/* Cada columna ordenable empieza por donde es útil: la referencia, la fecha y
+   el precio de mayor a menor —lo último que ha entrado arriba, que es lo que
+   pidió la oficina— y el agente en orden alfabético. Pulsar otra vez le da la
+   vuelta. */
+const PRIMER_SENTIDO = { referencia: "desc", fecha: "desc", precio: "desc", agente: "asc" };
+
+function Cabecera({ campo, orden, onOrdenar, children, className = "", alineacion = "left" }) {
+  const activa = orden.campo === campo;
+  const sentido = activa ? orden.sentido : PRIMER_SENTIDO[campo];
+
+  return (
+    <th
+      scope="col"
+      className={`px-4 py-2.5 font-bold ${className}`}
+      /* aria-sort es lo que hace que un lector de pantalla diga por dónde está
+         ordenada la tabla; sin esto la flecha no significa nada para quien no
+         la ve. */
+      aria-sort={activa ? (sentido === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        onClick={() =>
+          onOrdenar({ campo, sentido: activa ? (sentido === "asc" ? "desc" : "asc") : PRIMER_SENTIDO[campo] })
+        }
+        className={`inline-flex items-center gap-1 uppercase tracking-wide transition hover:text-ios-texto dark:hover:text-ios-texto-osc ${
+          activa ? "text-rk-naranja" : ""
+        } ${alineacion === "right" ? "flex-row-reverse w-full justify-start" : ""}`}
+      >
+        {children}
+        {activa ? (
+          sentido === "asc" ? (
+            <ArrowUp size={12} aria-hidden="true" />
+          ) : (
+            <ArrowDown size={12} aria-hidden="true" />
+          )
+        ) : (
+          <ArrowUpDown size={12} className="opacity-30" aria-hidden="true" />
+        )}
+      </button>
+    </th>
   );
 }
 

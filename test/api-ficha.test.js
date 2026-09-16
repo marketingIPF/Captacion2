@@ -159,3 +159,30 @@ test("las dos rutas traducen los campos igual", () => {
     assert.deepEqual(b[c], a[c], `el campo ${c} se traduce distinto según la ruta`);
   }
 });
+
+/* ── Orden del listado del panel ───────────────────────────────────────── */
+
+test("solo se acepta ordenar por las columnas previstas", async () => {
+  /* El campo llega del navegador y acaba decidiendo un ORDER BY. No se
+     concatena en el SQL —la consulta va parametrizada— pero aun así solo se
+     admiten estas claves: lo que no esté en la lista cae al orden por defecto
+     en vez de colarse. */
+  const { ordenPedido, ORDENES } = await import("../api/admin.js");
+
+  for (const campo of ORDENES) {
+    assert.equal(ordenPedido({ orden: campo, sentido: "asc" }).campo, campo);
+  }
+  for (const basura of ["precio; drop table fichas", "id", "", null, undefined, 7, {}]) {
+    assert.equal(ordenPedido({ orden: basura }).campo, "fecha", `«${basura}» debería caer al orden por defecto`);
+  }
+});
+
+test("el sentido también se comprueba, y por defecto es descendente", async () => {
+  /* Lo pidió la oficina: arriba lo último que ha entrado. */
+  const { ordenPedido } = await import("../api/admin.js");
+  assert.equal(ordenPedido({}).sentido, "desc");
+  assert.equal(ordenPedido({ orden: "referencia" }).sentido, "desc");
+  assert.equal(ordenPedido({ orden: "referencia", sentido: "asc" }).sentido, "asc");
+  assert.equal(ordenPedido({ orden: "referencia", sentido: "ASC" }).sentido, "desc", "solo en minúscula");
+  assert.equal(ordenPedido({ sentido: "raro" }).sentido, "desc");
+});

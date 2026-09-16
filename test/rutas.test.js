@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { nombreCorto } from "../src/lib/format.js";
+import { readFileSync } from "node:fs";
 
 /* Misma expresión que usa src/main.jsx para decidir qué app se monta. */
 const esAdmin = (ruta) => ruta.replace(/\/+$/, "").toLowerCase() === "/admin";
@@ -30,4 +31,16 @@ test("sin nombre no se inventa nada", () => {
   for (const v of ["", null, undefined, "   ", "@raro"]) {
     assert.equal(nombreCorto(v), "", `«${v}» debería dar vacío`);
   }
+});
+
+test("el panel y el servidor conocen las mismas columnas ordenables", async () => {
+  /* El panel valida el orden guardado antes de pedirlo; si las dos listas se
+     separan, el panel pediría un orden que el servidor descarta en silencio y
+     la tabla saldría ordenada de otra forma sin decir por qué. */
+  const { ORDENES } = await import("../api/admin.js");
+  const panel = readFileSync(new URL("../src/admin/AdminApp.jsx", import.meta.url), "utf8");
+  const m = panel.match(/const ORDENES = \[([^\]]*)\]/);
+  assert.ok(m, "no se ha encontrado la lista de órdenes en el panel");
+  const enElPanel = [...m[1].matchAll(/"([a-z]+)"/g)].map((x) => x[1]);
+  assert.deepEqual(enElPanel.slice().sort(), ORDENES.slice().sort());
 });

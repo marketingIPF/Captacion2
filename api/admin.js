@@ -41,6 +41,18 @@ const limitar = (n, def, max) => {
   return Number.isInteger(v) && v > 0 && v <= max ? v : def;
 };
 
+/* Por qué se puede ordenar. El campo NO entra en el SQL: se compara con estas
+   claves dentro de la consulta, que va parametrizada. Añadir una columna aquí
+   es añadirla también al CASE de abajo. */
+export const ORDENES = ["fecha", "referencia", "precio", "agente"];
+export const SENTIDOS = ["desc", "asc"];
+
+export function ordenPedido(body) {
+  const campo = ORDENES.includes(body?.orden) ? body.orden : "fecha";
+  const sentido = SENTIDOS.includes(body?.sentido) ? body.sentido : "desc";
+  return { campo, sentido };
+}
+
 export async function listar(sql, body, res) {
   const limite = limitar(body.limite, 50, 200);
   const desde = limitar(body.desde, 1, 100000) - 1;
@@ -50,6 +62,8 @@ export async function listar(sql, body, res) {
 
   /* Un solo patrón para el LIKE; el driver parametriza, no se concatena SQL. */
   const patron = texto ? `%${texto}%` : null;
+
+  const { campo, sentido } = ordenPedido(body);
 
   const filas = await sql`
     select id, recibida_en, corregida_en, envios, agente_id, agente_nombre,
@@ -62,10 +76,40 @@ export async function listar(sql, body, res) {
       and (${patron}::text is null or
            direccion ilike ${patron} or poblacion ilike ${patron} or
            referencia ilike ${patron} or agente_nombre ilike ${patron})
-    /* Por lo último que se ha movido: una corrección del agente interesa
-       tanto como una captación nueva, y si no subiera al principio pasaría
-       inadvertida. */
-    order by coalesce(corregida_en, recibida_en) desc
+    /* El orden lo elige la oficina. El driver solo acepta plantillas, así que
+       el campo no se concatena: se compara aquí dentro, ya parametrizado.
+
+       Las claves numéricas van en un único término y el sentido se aplica
+       multiplicando por -1, que evita repetir el CASE para asc y para desc.
+       El nombre del agente es texto y no se puede negar, así que ese lleva
+       sus dos términos.
+
+       La referencia se ordena por su NÚMERO, no como texto: "#9" y "#10" en
+       texto salen al revés. Las que no tienen referencia van siempre al final,
+       en los dos sentidos: son las que están sin asignar.
+
+       Por defecto, lo último que se ha movido: una corrección del agente
+       interesa tanto como una captación nueva, y si no subiera al principio
+       pasaría inadvertida.
+
+       Y la columna id de último desempate SIEMPRE: sin ella, dos filas con la
+       misma clave
+       pueden salir en distinto orden en cada consulta, y con paginación eso
+       hace que una ficha se repita en dos páginas o no salga en ninguna. */
+    order by
+      (case
+         when ${campo} = 'referencia'
+           /* [^0-9] y no \D a propósito: dentro de una plantilla de
+              JavaScript, \D se convierte en la letra D y el SQL acababa
+              quitando las des en vez de lo que no son cifras. */
+           then nullif(regexp_replace(coalesce(referencia, ''), '[^0-9]', '', 'g'), '')::numeric
+         when ${campo} = 'precio' then precio
+         when ${campo} = 'fecha'
+           then extract(epoch from coalesce(corregida_en, recibida_en))
+       end) * (case when ${sentido} = 'asc' then 1 else -1 end) asc nulls last,
+      (case when ${campo} = 'agente' and ${sentido} = 'asc' then agente_nombre end) asc nulls last,
+      (case when ${campo} = 'agente' and ${sentido} = 'desc' then agente_nombre end) desc nulls last,
+      id desc
     limit ${limite} offset ${desde}
   `;
 

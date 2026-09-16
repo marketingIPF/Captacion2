@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { repartir } from "../api/estado.js";
 import { fichaAFilaDeOficina } from "../api/_ficha.js";
 import { MAX_FICHAS } from "../api/mis-fichas.js";
+import { ordenPedido } from "../api/admin.js";
 import { CLAVES_FASE } from "../src/lib/fases.js";
 
 const PIN_ACCESO = "agentes-2026";
@@ -540,6 +541,29 @@ export function mockApi() {
               [f.direccion, f.poblacion, f.referencia, f.agente_nombre].filter(Boolean).some((v) => v.toLowerCase().includes(t))
             );
           }
+          /* Se ordena como el endpoint real —mismas claves, mismo criterio para
+             las que no tienen referencia y mismo desempate— porque si aquí
+             saliera otro orden, probarlo en local no diría nada. */
+          const { campo, sentido } = ordenPedido(body);
+          const numRef = (f) => {
+            const n = String(f.referencia || "").replace(/[^0-9]/g, "");
+            return n === "" ? null : Number(n);
+          };
+          const clave = {
+            referencia: numRef,
+            precio: (f) => (f.precio == null ? null : Number(f.precio)),
+            fecha: (f) => Date.parse(f.corregida_en || f.recibida_en),
+            agente: (f) => f.agente_nombre || null,
+          }[campo];
+          filtradas = filtradas.slice().sort((a, b) => {
+            const x = clave(a), y = clave(b);
+            if (x === y) return String(b.id).localeCompare(String(a.id));
+            if (x === null || x === undefined) return 1;   // sin dato, al final
+            if (y === null || y === undefined) return -1;
+            const cmp = typeof x === "string" ? x.localeCompare(y) : x - y;
+            return sentido === "asc" ? cmp : -cmp;
+          });
+
           const desde = (body.desde || 1) - 1;
           const limite = body.limite || 50;
           return responder(res, 200, {
