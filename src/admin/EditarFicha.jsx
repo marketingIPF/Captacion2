@@ -159,9 +159,17 @@ export function EditarFicha({ ficha, modo = "editar", agentes = [], onGuardada, 
                 onChange={(e) => setRecibida(e.target.value)}
                 className="w-full rounded-xl border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-superficie-osc px-3 py-2.5 text-[14px] text-ios-texto dark:text-ios-texto-osc outline-none focus:border-rk-naranja"
               />
+              {/* Lo segundo importa tanto como lo primero: Julia tecleó dos
+                  captaciones de julio, se guardaron bien, y al volver a la
+                  lista no las encontró porque estaban al final, con las de
+                  julio. Parecía que no se habían guardado. */}
               <span className="block text-[11.5px] text-ios-texto3 mt-1">
                 Pon la de entonces, no la de hoy: si no, las antiguas contarían
-                como captaciones de este mes.
+                como captaciones de este mes.{" "}
+                <strong className="font-semibold">
+                  La lista se ordena por esta fecha, así que una captación
+                  antigua aparecerá abajo, no arriba.
+                </strong>
               </span>
             </label>
           </div>
