@@ -12,6 +12,7 @@ test("el servidor valida contra las mismas fases que se pintan", () => {
 test("las fases están en el orden del proceso", () => {
   assert.deepEqual(CLAVES_FASE, [
     "nueva",
+    "fotos_solicitadas",
     "agendada_fotos",
     "pendiente",
     "publicada",

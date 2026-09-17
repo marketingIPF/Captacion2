@@ -124,6 +124,9 @@ export const filaAFicha = (row) => ({
   origen: row.origen || "agente",
   creadaPor: row.creada_por || null,
   creadaPorNombre: row.creada_por_nombre || null,
+  /* Marca de "ojo con esta". Va en el listado, que es donde tiene que verse. */
+  importante: row.importante === true,
+  importantePor: row.importante_por || null,
   notaOficina: row.nota_oficina,
   actualizadaPor: row.actualizada_por || null,
   data: row.datos,
@@ -150,6 +153,9 @@ export const filaAResumen = (row) => ({
   origen: row.origen || "agente",
   creadaPor: row.creada_por || null,
   creadaPorNombre: row.creada_por_nombre || null,
+  /* Marca de "ojo con esta". Va en el listado, que es donde tiene que verse. */
+  importante: row.importante === true,
+  importantePor: row.importante_por || null,
   operacion: row.operacion,
   tipo: row.tipo,
   referencia: row.referencia,

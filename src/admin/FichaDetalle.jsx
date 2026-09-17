@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, Pencil, Printer, Trash2 } from "lucide-react";
+import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, AlertTriangle, Pencil, Printer, Trash2 } from "lucide-react";
 import {
   bloquesFicha, bloqueComoTexto, textoFicha, tituloFicha, direccionCompleta, cifrasClave,
 } from "../lib/resumen.js";
@@ -83,7 +83,13 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
     setGuardando(true);
     try {
       const r = await llamar("actualizar", { id, ...cambios });
-      setFicha((f) => ({ ...f, estado: r.ficha.estado, notaOficina: r.ficha.nota_oficina }));
+      setFicha((f) => ({
+        ...f,
+        estado: r.ficha.estado,
+        notaOficina: r.ficha.nota_oficina,
+        importante: r.ficha.importante === true,
+        importantePor: r.ficha.importante_por || null,
+      }));
       onActualizada?.(r.ficha);
     } catch (e) {
       setError(e.message);
@@ -435,6 +441,37 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
                     );
                   })}
                 </div>
+                {/* Va junto a la nota porque se usan juntas: se marca el aviso
+                    y se escribe debajo qué pasa. La marca se ve en el listado;
+                    la nota hay que abrirla. */}
+                <button
+                  type="button"
+                  onClick={() => guardar({ importante: !ficha.importante })}
+                  disabled={guardando}
+                  aria-pressed={ficha.importante === true}
+                  className={`mt-4 w-full flex items-center gap-2.5 rounded-xl border px-3.5 py-3 text-left transition active:scale-[0.99] disabled:opacity-60 ${
+                    ficha.importante
+                      ? "bg-amber-50 border-amber-300 dark:bg-amber-500/10 dark:border-amber-500/40"
+                      : "bg-white dark:bg-ios-elevada-osc border-ios-borde dark:border-ios-borde-osc"
+                  }`}
+                >
+                  <AlertTriangle
+                    size={17}
+                    className={`shrink-0 ${ficha.importante ? "text-amber-600" : "text-ios-texto3"}`}
+                    aria-hidden="true"
+                  />
+                  <span className="flex-1">
+                    <span className={`block text-[13.5px] font-semibold ${ficha.importante ? "text-amber-900 dark:text-amber-200" : "text-ios-texto dark:text-ios-texto-osc"}`}>
+                      {ficha.importante ? "Marcada como importante" : "Marcar como importante"}
+                    </span>
+                    <span className="block text-[11.5px] text-ios-texto2 dark:text-ios-texto2-osc leading-snug">
+                      {ficha.importante
+                        ? "Sale con un aviso en el listado. Pulsa para quitarlo."
+                        : "Para que se vea en el listado sin abrir la ficha."}
+                    </span>
+                  </span>
+                </button>
+
                 <div className="flex items-center justify-between gap-3 mt-4 mb-1.5">
                   <label htmlFor="nota" className="text-[12px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc">
                     Nota interna de oficina

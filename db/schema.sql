@@ -38,13 +38,21 @@ create table if not exists fichas (
   -- Vendido y Alquilado son excluyentes segun la operacion, pero eso no se
   -- fuerza aqui: la operacion se puede corregir despues de marcar la fase.
   estado          text not null default 'nueva'
-                  check (estado in ('nueva', 'agendada_fotos', 'pendiente',
-                                    'publicada', 'reservado', 'vendido',
-                                    'alquilado', 'baja')),
+                  check (estado in ('nueva', 'fotos_solicitadas',
+                                    'agendada_fotos', 'pendiente', 'publicada',
+                                    'reservado', 'vendido', 'alquilado',
+                                    'baja')),
   -- 'agente' (llegó del móvil) u 'oficina' (la teclearon aquí). Las de la
   -- oficina son las de antes de la app y vienen incompletas a propósito.
   origen          text not null default 'agente'
                   check (origen in ('agente', 'oficina')),
+
+  -- "Ojo con esta": algo que hay que ver en el listado sin abrir la ficha.
+  -- Booleana y no un nivel de prioridad: con tres niveles todo acaba siendo
+  -- urgente y la marca deja de significar nada.
+  importante        boolean not null default false,
+  importante_por    text,
+  importante_en     timestamptz,
 
   nota_oficina    text,
   actualizada_por text,          -- email de quien lo tocó desde el panel

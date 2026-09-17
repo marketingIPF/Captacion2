@@ -266,6 +266,8 @@ const resumenDe = (f) => ({
   creada: f.creada_en,
   creadaPor: f.creada_por || null,
   creadaPorNombre: f.creada_por_nombre || null,
+  importante: f.importante === true,
+  importantePor: f.importante_por || null,
   operacion: f.operacion,
   tipo: f.tipo,
   referencia: f.referencia,
@@ -426,6 +428,8 @@ export function mockApi() {
                 origen: f.origen || "agente",
                 creadaPor: f.creada_por || null,
                 creadaPorNombre: f.creada_por_nombre || null,
+                importante: f.importante === true,
+                importantePor: f.importante_por || null,
                 notaOficina: f.nota_oficina, actualizadaPor: f.actualizada_por,
                 data: f.datos, propietarios: f.propietarios,
               },
@@ -437,8 +441,14 @@ export function mockApi() {
             if (!f) return responder(res, 404, { error: "Ficha no encontrada" });
             if (body.estado) f.estado = body.estado;
             if (body.nota !== undefined && body.nota !== null) f.nota_oficina = body.nota;
+            /* Igual que el endpoint real: la marca solo cambia si viene en la
+               petición, para que guardar una nota no la borre sin querer. */
+            if (typeof body.importante === "boolean") {
+              f.importante = body.importante;
+              f.importante_por = body.importante ? "julia@inmobiliariapalanca.com" : null;
+            }
             f.actualizada_en = new Date().toISOString();
-            return responder(res, 200, { ok: true, ficha: { id: f.id, estado: f.estado, nota_oficina: f.nota_oficina, actualizada_en: f.actualizada_en } });
+            return responder(res, 200, { ok: true, ficha: { id: f.id, estado: f.estado, nota_oficina: f.nota_oficina, importante: f.importante === true, importante_por: f.importante_por || null, actualizada_en: f.actualizada_en } });
           }
 
           if (body.accion === "eliminar") {
@@ -477,6 +487,8 @@ export function mockApi() {
                 origen: f.origen || "agente",
                 creadaPor: f.creada_por || null,
                 creadaPorNombre: f.creada_por_nombre || null,
+                importante: f.importante === true,
+                importantePor: f.importante_por || null,
                 notaOficina: f.nota_oficina, actualizadaPor: f.actualizada_por,
                 data: f.datos, propietarios: f.propietarios,
               },

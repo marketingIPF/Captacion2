@@ -68,7 +68,8 @@ export async function listar(sql, body, res) {
   const filas = await sql`
     select id, recibida_en, corregida_en, envios, agente_id, agente_nombre,
            estado, origen, creada_en, creada_por, creada_por_nombre, operacion,
-           tipo, referencia, direccion, numero, poblacion, precio, nota_oficina
+           tipo, referencia, direccion, numero, poblacion, precio, nota_oficina,
+           importante, importante_por
     from fichas
     where eliminada_en is null
       and (${estado}::text is null or estado = ${estado})
@@ -148,13 +149,29 @@ export async function actualizar(sql, body, res, usuario) {
   `;
   if (!previa) return res.status(404).json({ error: "Ficha no encontrada" });
 
+  /* La marca solo se toca si viene en la petición: guardar una nota no puede
+     quitar el aviso sin querer. */
+  const importante = typeof body.importante === "boolean" ? body.importante : null;
+
   const [row] = await sql`
     update fichas set
       estado = coalesce(${body.estado ?? null}, estado),
       nota_oficina = coalesce(${nota}, nota_oficina),
+      importante = coalesce(${importante}::boolean, importante),
+      importante_por = case
+        when ${importante}::boolean is null then importante_por
+        when ${importante}::boolean then ${usuario?.email || null}
+        else null
+      end,
+      importante_en = case
+        when ${importante}::boolean is null then importante_en
+        when ${importante}::boolean then now()
+        else null
+      end,
       actualizada_por = ${usuario?.email || null}
     where id = ${body.id}
-    returning id, estado, nota_oficina, actualizada_en, actualizada_por
+    returning id, estado, nota_oficina, importante, importante_por,
+              actualizada_en, actualizada_por
   `;
   if (!row) return res.status(404).json({ error: "Ficha no encontrada" });
 

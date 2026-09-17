@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff, Plus, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Search, Loader2, LogOut, RefreshCw, Download, Inbox, ChevronLeft, ChevronRight, Printer, StickyNote, Bell, BellOff, Plus, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle } from "lucide-react";
 import { Logo } from "../components/Logo.jsx";
 import { Avatar } from "../components/Avatar.jsx";
 import { fmtPrecio, nombreCorto, fechaDeFicha, fmtDia } from "../lib/format.js";
@@ -449,6 +449,16 @@ export function AdminApp() {
                         {/* La agencia identifica cada inmueble por su
                             referencia; la dirección pasa a la segunda línea. */}
                         <div className="font-semibold text-ios-texto dark:text-ios-texto-osc text-[14px] tabular-nums">
+                          {/* El aviso va pegado al nombre, que es lo primero
+                              que se lee de la fila. */}
+                          {f.importante && (
+                            <AlertTriangle
+                              size={15}
+                              className="inline-block mr-1.5 -mt-0.5 text-amber-600 shrink-0"
+                              aria-hidden="true"
+                            />
+                          )}
+                          {f.importante && <span className="sr-only">Importante: </span>}
                           {nombreDeFicha(f)}
                         </div>
                         <div className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc">
@@ -593,7 +603,15 @@ export function AdminApp() {
           onEliminada={() => cargar()}
           onActualizada={(f) => {
             if (f.recargar) cargar();
-            else setFichas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: f.estado } : x)));
+            /* También la marca de importante: si solo se copiara el estado, al
+               marcar una ficha el aviso no aparecería en su fila hasta
+               recargar, y parecería que no se ha guardado. */
+            else
+              setFichas((p) =>
+                p.map((x) =>
+                  x.id === f.id ? { ...x, estado: f.estado, importante: f.importante === true } : x
+                )
+              );
           }}
         />
       )}

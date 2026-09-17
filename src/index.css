@@ -49,6 +49,7 @@ body {
    el CSS. Un test comprueba que no se separen. */
 :root {
   --estado-nueva: #9c5310;
+  --estado-fotos_solicitadas: #4f6710;
   --estado-agendada_fotos: #7a3aa8;
   --estado-pendiente: #0058b8;
   --estado-publicada: #1e7a34;
@@ -61,6 +62,7 @@ body {
 @media (prefers-color-scheme: dark) {
   :root {
     --estado-nueva: #f0a25a;
+    --estado-fotos_solicitadas: #aecb61;
     --estado-agendada_fotos: #d9a2f0;
     --estado-pendiente: #6fb4ff;
     --estado-publicada: #5fd77e;
