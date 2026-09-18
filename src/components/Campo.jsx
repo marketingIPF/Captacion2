@@ -110,7 +110,20 @@ export const Campo = memo(function Campo({ def, value, error, onChange, onBlur, 
   }
 
   if (def.kind === "chips") {
-    const arr = value || [];
+    /* Las fichas guardadas antes de que un campo admitiera varias opciones
+       tienen ahí un texto, no una lista. Sin esto, abrir una de esas para
+       corregirla reventaba al pulsar: los textos no tienen .filter(). */
+    const arr = Array.isArray(value) ? value : value ? [value] : [];
+
+    /* Opciones que no admiten compañía: marcar "No tiene" y además "Gas" sería
+       una ficha que se contradice a sí misma. */
+    const exclusivas = def.exclusivas || [];
+    const alPulsar = (o, act) => {
+      if (act) return onChange(def.key, arr.filter((x) => x !== o));
+      if (exclusivas.includes(o)) return onChange(def.key, [o]);
+      return onChange(def.key, [...arr.filter((x) => !exclusivas.includes(x)), o]);
+    };
+
     return (
       <fieldset>
         <legend className={lblBase}>{def.label}</legend>
@@ -122,7 +135,7 @@ export const Campo = memo(function Campo({ def, value, error, onChange, onBlur, 
                 key={o}
                 type="button"
                 aria-pressed={act}
-                onClick={() => onChange(def.key, act ? arr.filter((x) => x !== o) : [...arr, o])}
+                onClick={() => alPulsar(o, act)}
                 className={`px-3 py-1.5 rounded-full text-[13px] font-medium border transition active:scale-95 flex items-center gap-1 ${
                   act ? "bg-rk-soft text-rk-naranja border-rk-naranja" : "bg-white text-gray-700 border-ios-borde"
                 }`}

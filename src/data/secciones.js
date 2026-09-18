@@ -22,6 +22,10 @@ import { RESIDENCIAL, EDIFICADO, CON_PARCELA, EN_EDIFICIO } from "./tipos.js";
 const txt = (key, label, o = {}) => ({ key, kind: "txt", label, ...o });
 const num = (key, label, o = {}) => ({ key, kind: "num", label, ...o });
 const seg = (key, label, options, o = {}) => ({ key, kind: "seg", label, options, ...o });
+/* `seg` es elegir UNA; `chips`, varias. Los materiales y acabados van con
+   chips porque una vivienda mezcla: madera y aluminio en las ventanas, gres en
+   la cocina y tarima en los dormitorios. `exclusivas` marca las opciones que no
+   admiten compañía, como "No tiene". */
 const chips = (key, label, options, o = {}) => ({ key, kind: "chips", label, options, ...o });
 const area = (key, label, o = {}) => ({ key, kind: "area", label, ...o });
 
@@ -154,16 +158,16 @@ export const SECCIONES = [
     icon: Sparkles,
     tipos: [...RESIDENCIAL, "Local"],
     fields: [
-      seg("ventanaMat", "Ventanas — material", ["Aluminio", "PVC", "Madera", "Climalit"]),
-      seg("ventanaApertura", "Tipo de apertura", ["Correderas", "Abatibles", "Oscilobatientes"]),
-      seg("puertas", "Puertas interiores", ["Macizas", "Huecas", "Lacadas", "Roble/Haya"], { tipos: RESIDENCIAL }),
-      seg("suelos", "Suelos", ["Tarima", "Gres", "Terrazo", "Mármol", "Porcelánico"]),
+      chips("ventanaMat", "Ventanas — material", ["Aluminio", "PVC", "Madera", "Climalit"]),
+      chips("ventanaApertura", "Tipo de apertura", ["Correderas", "Abatibles", "Oscilobatientes"]),
+      chips("puertas", "Puertas interiores", ["Macizas", "Huecas", "Lacadas", "Roble/Haya"], { tipos: RESIDENCIAL }),
+      chips("suelos", "Suelos", ["Tarima", "Gres", "Terrazo", "Mármol", "Porcelánico"]),
       seg("cocinaTipo", "Cocina", ["Independiente", "Abierta", "Americana"], { tipos: RESIDENCIAL }),
       seg("fuegos", "Fuegos", ["Vitrocerámica", "Inducción", "Gas"], { tipos: RESIDENCIAL }),
-      seg("acs", "Agua caliente", ["Termo eléctrico", "Gas natural", "Butano", "Solar", "Aerotermia"]),
-      seg("clima", "Climatización", ["A/A Splits", "Conductos", "No tiene"]),
-      seg("calefaccion", "Calefacción", ["Gas", "Eléctrica", "Suelo radiante", "No tiene"], { tipos: RESIDENCIAL }),
-      seg("paredes", "Paredes", ["Lisas", "Gotelé", "Papel pintado"], { tipos: RESIDENCIAL }),
+      chips("acs", "Agua caliente", ["Termo eléctrico", "Gas natural", "Butano", "Solar", "Aerotermia"]),
+      chips("clima", "Climatización", ["A/A Splits", "Conductos", "No tiene"], { exclusivas: ["No tiene"] }),
+      chips("calefaccion", "Calefacción", ["Gas", "Eléctrica", "Suelo radiante", "No tiene"], { tipos: RESIDENCIAL, exclusivas: ["No tiene"] }),
+      chips("paredes", "Paredes", ["Lisas", "Gotelé", "Papel pintado"], { tipos: RESIDENCIAL }),
     ],
   },
   {
@@ -176,9 +180,9 @@ export const SECCIONES = [
       seg("cotaCero", "A cota cero", ["Sí", "No"], { tipos: EDIFICADO }),
       chips("zonasComunes", "Zonas comunes", ["Piscina", "Jardines", "Club social", "Pádel/Tenis", "Zona infantil"], { tipos: EN_EDIFICIO }),
       seg("conserjeria", "Conserjería / vigilancia", ["Sí", "No"], { tipos: EN_EDIFICIO }),
-      seg("fachada", "Fachada", ["Ladrillo caravista", "Monocapa", "Pintada", "Piedra"], { tipos: EDIFICADO }),
+      chips("fachada", "Fachada", ["Ladrillo caravista", "Monocapa", "Pintada", "Piedra"], { tipos: EDIFICADO }),
       seg("estado", "Estado de conservación", ["Para entrar", "Buen estado", "A reformar", "A estrenar"], { tipos: EDIFICADO }),
-      seg("orientacion", "Orientación", ["Norte", "Sur", "Este", "Oeste"]),
+      chips("orientacion", "Orientación", ["Norte", "Sur", "Este", "Oeste"]),
       seg("acceso", "Acceso rodado", ["Sí", "No"], { tipos: ["Terreno"] }),
       chips("suministros", "Suministros disponibles", ["Agua", "Luz", "Alcantarillado", "Gas"], { tipos: ["Terreno", "Local"] }),
       chips("vistas", "Vistas", ["Al mar", "A la montaña", "Despejadas", "Interior"]),

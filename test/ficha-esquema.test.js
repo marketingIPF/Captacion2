@@ -211,3 +211,59 @@ test("el texto que copia la oficina no dice Invalid Date", async () => {
   assert.doesNotMatch(texto, /Invalid Date/);
   assert.match(texto, /Fecha: \d{2} \w+ 2026/);
 });
+
+/* ── Campos que admiten varias opciones ────────────────────────────────── */
+
+const defDe = (clave) => SECCIONES.flatMap((s) => s.fields).find((f) => f.key === clave);
+
+test("los materiales y acabados admiten varias opciones", async () => {
+  /* Lo pidió el equipo: una vivienda puede tener madera Y aluminio, o gres en
+     la cocina y tarima en los dormitorios. */
+  for (const clave of ["ventanaMat", "ventanaApertura", "puertas", "suelos", "acs", "clima", "calefaccion", "paredes", "fachada", "orientacion"]) {
+    assert.equal(defDe(clave)?.kind, "chips", `${clave} debería admitir varias`);
+  }
+});
+
+test("lo que por naturaleza es una sola cosa sigue siéndolo", () => {
+  /* Una operación no es venta Y alquiler, ni una cocina independiente Y
+     americana. Marcar todo como múltiple invita a fichas incoherentes. */
+  for (const clave of ["operacion", "cee", "ceeLetra", "ocupacion", "autorizacion", "exclusiva", "cocinaTipo", "fuegos", "estado", "ascensor", "vpo"]) {
+    assert.equal(defDe(clave)?.kind, "seg", `${clave} no debería admitir varias`);
+  }
+});
+
+test('las opciones "No tiene" están marcadas como excluyentes', () => {
+  /* Sin esto se podría guardar "Climatización: A/A Splits, No tiene". */
+  for (const clave of ["clima", "calefaccion"]) {
+    const def = defDe(clave);
+    assert.ok(def.options.includes("No tiene"), `${clave} ya no tiene esa opción`);
+    assert.deepEqual(def.exclusivas, ["No tiene"], `${clave} sin marcar la excluyente`);
+  }
+});
+
+test("una ficha antigua con un solo valor se sigue leyendo", async () => {
+  /* Las guardadas antes del cambio tienen ahí un texto, no una lista. Tienen
+     que seguir viéndose igual en el panel y en el papel. */
+  const { bloquesFicha } = await import("../src/lib/resumen.js");
+  const filas = bloquesFicha({
+    agenteName: "Ana",
+    fecha: "2026-09-01T10:00:00.000Z",
+    propietarios: [],
+    data: { operacion: "Venta", tipo: "Piso", direccion: "Calle Mayor", suelos: "Gres", ventanaMat: "Aluminio" },
+  }).flatMap((b) => b.filas);
+
+  assert.equal(filas.find(([k]) => k === "Suelos")?.[1], "Gres");
+  assert.equal(filas.find(([k]) => k === "Ventanas — material")?.[1], "Aluminio");
+});
+
+test("una ficha nueva con varias se escribe separada por comas", async () => {
+  const { bloquesFicha } = await import("../src/lib/resumen.js");
+  const filas = bloquesFicha({
+    agenteName: "Ana",
+    fecha: "2026-09-01T10:00:00.000Z",
+    propietarios: [],
+    data: { operacion: "Venta", tipo: "Piso", direccion: "Calle Mayor", ventanaMat: ["Madera", "Aluminio"] },
+  }).flatMap((b) => b.filas);
+
+  assert.equal(filas.find(([k]) => k === "Ventanas — material")?.[1], "Madera, Aluminio");
+});
