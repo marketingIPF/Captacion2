@@ -20,6 +20,9 @@ const NOMBRE_ARCHIVO = {
   "alejandro-garcia": "agarcia", "amparo-orts": "aorts", "asuncion-marco": "ASUN",
   "clara-ordonez": "CLARA", "claudia-stelling": "Claudia", "desiree-lopez": "DESIREE",
   "eva-valles": "EVA", "fede-carbonell": "fede", "fran-estelles": "FRAN",
+  /* La coincidencia es por nombre EXACTO, así que "jose" no se confunde con
+     "JOSEGIMENEZ". */
+  "javier-palanca": "javi", "jose-miguel-palanca": "jose",
   "jose-gimenez": "JOSEGIMENEZ", "lorena-lull": "Lorena", "maria-luisa": "Mluisa",
   "maria-jose": "Mariajose", "mavi-castillo": "MAVI", "natalia-sanfelix": "Natalia",
   "nuria-nunez": "Nuria", "rosa-domenech": "rdomenech", "sefa-gallent": "SEFA",
