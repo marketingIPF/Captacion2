@@ -15,7 +15,7 @@ export function Perfil({ agente, sent, drafts, enCola = 0, pin, onChangeAgent, o
       </header>
 
       <div className="px-5 mt-4 space-y-4">
-        <div className="rounded-3xl p-6 flex flex-col items-center text-center bg-ios-superficie border border-ios-borde">
+        <div className="neu rounded-3xl p-6 flex flex-col items-center text-center">
           <Avatar agente={agente} tam={88} className="ring-2 ring-rk-softBorde" />
           <div className="text-[20px] font-bold mt-3 text-ios-texto">{agente.name}</div>
           <div className="text-ios-texto2 text-[14px]">{agente.role}</div>
@@ -23,21 +23,21 @@ export function Perfil({ agente, sent, drafts, enCola = 0, pin, onChangeAgent, o
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-ios-borde text-center">
+          <div className="neu rounded-2xl p-4 text-center">
             <div className="text-[26px] font-extrabold text-rk-naranja leading-none">{mias.length}</div>
             <div className="text-[11.5px] text-ios-texto2 mt-1 leading-tight">Enviadas por ti</div>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-ios-borde text-center">
+          <div className="neu rounded-2xl p-4 text-center">
             <div className="text-[26px] font-extrabold text-ios-texto leading-none">{drafts.length}</div>
             <div className="text-[11.5px] text-ios-texto2 mt-1 leading-tight">Borradores</div>
           </div>
-          <div className={`rounded-2xl p-4 shadow-sm border text-center ${enCola > 0 ? "bg-amber-50 border-amber-200" : "bg-white border-ios-borde"}`}>
+          <div className={`rounded-2xl p-4 text-center ${enCola > 0 ? "bg-amber-50 border border-amber-200" : "neu"}`}>
             <div className={`text-[26px] font-extrabold leading-none ${enCola > 0 ? "text-amber-600" : "text-ios-texto"}`}>{enCola}</div>
             <div className="text-[11.5px] text-ios-texto2 mt-1 leading-tight">Sin enviar</div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-ios-borde shadow-sm divide-y divide-ios-borde overflow-hidden">
+        <div className="neu rounded-2xl divide-y divide-ios-borde overflow-hidden">
           <BotonNotificaciones
             credenciales={{ pin, agenteId: agente.id }}
             descripcion="Te avisamos cuando la oficina mueva una captación tuya."
@@ -74,7 +74,7 @@ export function Perfil({ agente, sent, drafts, enCola = 0, pin, onChangeAgent, o
           </button>
         </div>
 
-        <div className="bg-white rounded-2xl border border-ios-borde shadow-sm p-5">
+        <div className="neu rounded-2xl p-5">
           <div className="flex items-start gap-2.5">
             <ShieldCheck size={18} className="text-rk-naranja shrink-0 mt-0.5" aria-hidden="true" />
             <div className="text-[12.5px] text-ios-texto2 leading-relaxed">

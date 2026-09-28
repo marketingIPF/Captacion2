@@ -23,7 +23,7 @@ export const TipoSelector = memo(function TipoSelector({ value, onChange, sinObl
               aria-pressed={act}
               onClick={() => onChange("tipo", t.key)}
               className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition active:scale-95 ${
-                act ? "bg-rk-soft text-rk-naranja border-rk-naranja shadow-sm" : "bg-white text-ios-texto2 border-ios-borde"
+                act ? "neu-hundido-color bg-rk-soft text-rk-naranja border-rk-naranja" : "neu-suave text-ios-texto2 border-transparent"
               }`}
             >
               <Icon size={20} strokeWidth={act ? 2.4 : 2} className={act ? "text-rk-naranja" : ""} aria-hidden="true" />

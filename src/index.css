@@ -18,7 +18,7 @@ body,
 }
 
 body {
-  background: #f2f2f7;
+  background: var(--ios-fondo);
   font-family: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   /* Evita el zoom accidental al tocar dos veces en iOS */
@@ -74,12 +74,20 @@ body {
 }
 
 /* ── Neumorfismo ──────────────────────────────────────────────────────────
-   Relieve suave: la superficie es del MISMO color que el fondo y son las dos
-   sombras —una clara arriba-izquierda y otra oscura abajo-derecha— las que la
-   levantan o la hunden. Los tonos salen del fondo de la app (#f2f2f7) ±34 por
-   canal, que es la proporción del generador de neumorphism.io.
+   Relieve suave, pero con los límites intactos.
 
-   Se usa con medida, y hay sitios donde NO se usa a propósito:
+   El neumorfismo de manual pinta la superficie del MISMO color que el fondo y
+   deja que solo las sombras la levanten. Probado en esta app, eso dejaba la
+   tarjeta, el campo y la página del mismo gris: sin bordes, sin jerarquía y
+   sin vida. Aquí se usa la variante que sí distingue las cosas —lo levantado
+   es BLANCO, lo hundido es el gris de la página— y las dos sombras, una clara
+   arriba-izquierda y otra oscura abajo-derecha, hacen el relieve.
+
+   De ahí que solo hagan falta dos colores: el blanco de lo que sobresale y el
+   gris del papel sobre el que descansa. Lo hundido enseña ese papel a través
+   de la tarjeta, que es justo lo que es: un hueco.
+
+   Hay sitios donde NO se usa a propósito:
    - El botón naranja de enviar: una acción principal tiene que verse como un
      botón, no como un relieve sutil.
    - Las etiquetas de fase y los avisos de error: su contraste está medido y
@@ -92,28 +100,39 @@ body {
      que además se leen en la calle y con sol. */
   --ios-texto3: #6c6c70;
 
-  --neu-base: #f2f2f7;
-  --neu-oscura: #d0d0d5;
+  /* El papel. Un punto más frío y más hondo que el #f2f2f7 de antes: lo justo
+     para que una tarjeta blanca se recorte encima, sin bajar de 4,5:1 el texto
+     gris que se apoya directamente en él. */
+  --ios-fondo: #eceef4;
+
+  --neu-base: #ffffff;   /* lo que se levanta */
+  --neu-hueco: #eceef4;  /* lo que se hunde: el papel visto por el hueco */
+  --neu-oscura: #c9ccd6;
   --neu-clara: #ffffff;
+
+  /* La bandeja de la barra inferior. Translúcida para que se note que hay
+     contenido debajo, pero poco: a 0,86 el botón naranja de enviar se colaba
+     entero y pintaba la barra de naranja al llegar al final de la ficha. */
+  --neu-bandeja: rgba(236, 238, 244, 0.94);
 }
 
 .neu {
   background: var(--neu-base);
-  box-shadow: 6px 6px 12px var(--neu-oscura), -6px -6px 12px var(--neu-clara);
+  box-shadow: 6px 6px 14px var(--neu-oscura), -6px -6px 14px var(--neu-clara);
 }
 
-/* Para piezas pequeñas —chips, iconos, la barra inferior—, donde una sombra
-   de 12 px se comería el espacio entre elementos. */
+/* Para piezas pequeñas —chips, botones secundarios, la pestaña activa—, donde
+   una sombra de 14 px se comería el espacio entre elementos. */
 .neu-suave {
   background: var(--neu-base);
-  box-shadow: 3px 3px 6px var(--neu-oscura), -3px -3px 6px var(--neu-clara);
+  box-shadow: 3px 3px 7px var(--neu-oscura), -3px -3px 7px var(--neu-clara);
 }
 
 /* Hundido: campos donde se escribe y lo que está pulsado. Es la convención
    del estilo y además dice algo cierto — aquí se mete contenido. */
 .neu-hundido {
-  background: var(--neu-base);
-  box-shadow: inset 4px 4px 8px var(--neu-oscura), inset -4px -4px 8px var(--neu-clara);
+  background: var(--neu-hueco);
+  box-shadow: inset 3px 3px 6px var(--neu-oscura), inset -3px -3px 6px var(--neu-clara);
 }
 
 /* El modo oscuro se limita al PANEL, que es la única de las dos apps que lo
@@ -126,17 +145,36 @@ body {
     --ios-texto3: #98989d;
 
     --neu-base: #2c2c2e;
-    --neu-oscura: #1e1e20;
+    --neu-hueco: #232325;
+    --neu-oscura: #161618;
     --neu-clara: #3a3a3c;
   }
+}
+
+/* El hueco sin color: para lo que ya tiene el suyo —una opción elegida va en
+   el naranja claro de marca— y solo necesita el relieve. */
+.neu-hundido-color {
+  box-shadow: inset 3px 3px 6px rgba(28, 28, 30, 0.10), inset -3px -3px 6px rgba(255, 255, 255, 0.7);
+}
+
+/* La bandeja de la barra inferior: flota sobre el contenido, así que además
+   del relieve necesita separarse de lo que pasa por debajo al desplazar. */
+.neu-bandeja {
+  background: var(--neu-bandeja);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(28, 28, 30, 0.14), -3px -3px 10px var(--neu-clara);
 }
 
 /* Quien pida menos movimiento suele agradecer también menos adorno, y en una
    pantalla de bajo contraste estas sombras desaparecen igualmente. */
 @media (prefers-contrast: more) {
-  .neu, .neu-suave, .neu-hundido {
+  .neu, .neu-suave, .neu-hundido, .neu-hundido-color, .neu-bandeja {
     box-shadow: none;
     border: 1px solid var(--ios-borde, #c7c7cc);
+  }
+  .neu-bandeja {
+    background: var(--ios-fondo);
   }
 }
 

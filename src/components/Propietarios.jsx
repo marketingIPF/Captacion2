@@ -27,7 +27,7 @@ export const Propietarios = memo(function Propietarios({ list, onChange }) {
         const eDni = errorDe(i, "dni", p.dni);
         const eMail = errorDe(i, "email", p.email);
         return (
-          <div key={i} className="bg-ios-fondo rounded-2xl p-3.5 border border-ios-borde space-y-2.5">
+          <div key={i} className="neu-hundido rounded-2xl p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[12px] font-bold uppercase tracking-wide text-rk-naranja">
                 Propietario {i + 1}

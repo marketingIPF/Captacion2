@@ -17,7 +17,9 @@ export default {
         /* Escala de grises al estilo de los System Colors de Apple: en claro
            los fondos son grises muy suaves, y en oscuro nunca negro puro. */
         ios: {
-          fondo: "#f2f2f7",
+          /* Variable por lo mismo que texto3: el papel de la app se define en
+             index.css junto a las sombras que se apoyan en él. */
+          fondo: "var(--ios-fondo)",
           superficie: "#ffffff",
           elevada: "#ffffff",
           borde: "#e5e5ea",

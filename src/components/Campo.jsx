@@ -145,7 +145,7 @@ export const Campo = memo(function Campo({ def, value, error, onChange, onBlur, 
                 onClick={() => alPulsar(o, act)}
                 className={`px-3 py-1.5 rounded-full text-[13px] font-medium border transition active:scale-95 flex items-center gap-1 ${
                   act
-                    ? "neu-hundido bg-rk-soft text-rk-naranja border-rk-naranja"
+                    ? "neu-hundido-color bg-rk-soft text-rk-naranja border-rk-naranja"
                     : "neu-suave text-gray-700 border-transparent"
                 }`}
               >

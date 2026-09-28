@@ -369,7 +369,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
         <button
           type="button"
           onClick={guardarBorrador}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-white border border-ios-borde font-semibold text-gray-700 active:scale-95 transition"
+          className="neu-suave w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-gray-700 active:scale-95 transition"
         >
           <Save size={18} aria-hidden="true" /> Guardar borrador
         </button>

@@ -72,7 +72,7 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
       )}
 
       <div className="px-5 mt-3">
-        <div className="flex gap-2 bg-ios-fondo p-1 rounded-2xl" role="tablist">
+        <div className="neu-hundido flex gap-2 p-1 rounded-2xl" role="tablist">
           {[["sent", `Enviadas ${sent.length}`], ["drafts", `Borradores ${drafts.length}`]].map(([k, l]) => (
             <button
               key={k}
@@ -81,7 +81,7 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
               aria-selected={tab === k}
               onClick={() => setTab(k)}
               className={`flex-1 py-2 rounded-xl text-[14px] font-semibold transition ${
-                tab === k ? "bg-white shadow-sm text-rk-naranja" : "text-ios-texto2"
+                tab === k ? "neu-suave text-rk-naranja" : "text-ios-texto2"
               }`}
             >
               {l}
@@ -94,7 +94,7 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
             type="button"
             onClick={actualizarFases}
             disabled={actualizando}
-            className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-ios-borde text-[12.5px] font-semibold text-ios-texto2 active:scale-95 transition disabled:opacity-60"
+            className="neu-suave mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12.5px] font-semibold text-ios-texto2 active:scale-95 transition disabled:opacity-60"
           >
             {actualizando ? (
               <Loader2 size={14} className="animate-spin" aria-hidden="true" />
