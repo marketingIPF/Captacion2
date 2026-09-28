@@ -264,10 +264,47 @@ export default function App() {
     setFicha((f) => ({ ...f, agenteId: a.id, agenteName: a.name }));
   };
 
-  const refreshAgentes = () => {
-    remove(K.CACHE);
-    setAgentesData(null);
-    toast("Vuelve a introducir el PIN para descargar la lista", "info");
+  /* Vuelve a pedir la lista del equipo con el PIN que ya está guardado.
+
+     La lista se guardaba al entrar y no se volvía a mirar en 30 días, así que
+     cuando entraba alguien nuevo el resto no lo veía: en una ventana de
+     incógnito sí aparecía —no había nada guardado— y en la normal no, por más
+     veces que se recargara. Y lo único que había era un botón que obligaba a
+     teclear el PIN otra vez, que para veinte personas no es una solución.
+
+     Devuelve cuántos agentes ha traído, o null si no se ha podido. */
+  const traerAgentes = useCallback(async () => {
+    if (!pin) return null;
+    try {
+      const r = await fetch("/api/agentes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      });
+      if (!r.ok) return null;
+      const data = await r.json();
+      if (!Array.isArray(data?.agentes) || !data.agentes.length) return null;
+      saveCacheAgentes(data);
+      setAgentesData(data);
+      return data.agentes.length;
+    } catch {
+      /* Sin conexión se sigue con la lista guardada: es justo el caso para el
+         que está la caché. */
+      return null;
+    }
+  }, [pin]);
+
+  /* Al abrir la app, en segundo plano. La pantalla no espera: se pinta con lo
+     guardado y se actualiza sola si hay algo nuevo. */
+  useEffect(() => {
+    if (pin && agentesData) traerAgentes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+
+  const refreshAgentes = async () => {
+    const n = await traerAgentes();
+    if (n) toast(`Lista actualizada · ${n} agentes`);
+    else toast("No se ha podido actualizar. Revisa la conexión.", "error");
   };
 
   const cerrarSesion = () => {
