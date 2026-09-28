@@ -18,7 +18,7 @@ import { Propietarios } from "../components/Propietarios.jsx";
 import { PreviewModal } from "./PreviewModal.jsx";
 import { useToast } from "../hooks/useToast.jsx";
 
-export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft, onEnviada, onChangeAgent, onDescartar, esCorreccion = false }) {
+export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft, onEnviada, onFinEnvio, onChangeAgent, onDescartar, esCorreccion = false }) {
   const [abierta, setAbierta] = useState("ident");
   const refSeccion = useRef({});   // la tarjeta de cada sección
   const refPanel = useRef({});     // su contenido plegable
@@ -28,6 +28,13 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
   const [mostrarErrores, setMostrarErrores] = useState(false);
   const [confirmarDescarte, setConfirmarDescarte] = useState(false);
   const toast = useToast();
+
+  /* Si la ficha es una corrección se fija al abrir el modal de envío y ya no
+     se relee. En cuanto se archiva pasa a estar en el historial, y desde ahí
+     la app la ve como "una que ya existe": la cabecera de detrás se ponía a
+     decir "Corrigiendo ficha" con el envío ya hecho. */
+  const correccionAlEnviar = useRef(esCorreccion);
+  const correccion = preview ? correccionAlEnviar.current : esCorreccion;
 
   const setData = useCallback(
     (k, v) => setFicha((f) => ({ ...f, data: { ...f.data, [k]: v } })),
@@ -139,6 +146,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
 
   const intentarEnviar = () => {
     if (puedeEnviar) {
+      correccionAlEnviar.current = esCorreccion;
       setPreview(true);
       return;
     }
@@ -175,7 +183,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
             <Avatar agente={agente} tam={36} />
             <div className="min-w-0">
               <p className="text-[11px] font-bold tracking-widest uppercase text-rk-naranja">
-              {esCorreccion ? "Corrigiendo ficha" : "Nueva ficha"}
+              {correccion ? "Corrigiendo ficha" : "Nueva ficha"}
             </p>
               <p className="text-[15px] font-semibold text-ios-texto truncate">{agente.name}</p>
             </div>
@@ -351,7 +359,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
       )}
 
       <div className="px-4 mt-5 space-y-2.5">
-        {esCorreccion && (
+        {correccion && (
           <p className="rounded-2xl bg-rk-soft border border-rk-softBorde px-4 py-3 text-[12.5px] text-ios-texto leading-snug">
             Estás corrigiendo una ficha que ya está en la oficina. Al reenviarla
             se actualiza la que hay —no se crea otra— y Julia la ve al momento.
@@ -364,7 +372,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
           style={{ boxShadow: "0 8px 24px rgba(207,115,27,.35)" }}
         >
           <Send size={19} aria-hidden="true" />
-          {esCorreccion ? "Revisar y reenviar" : "Revisar y enviar"}
+          {correccion ? "Revisar y reenviar" : "Revisar y enviar"}
         </button>
         <button
           type="button"
@@ -381,7 +389,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
             className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[14px] font-semibold text-ios-texto2 active:scale-95 transition"
           >
             <Trash2 size={16} aria-hidden="true" />
-            {esCorreccion ? "Descartar la corrección" : "Descartar esta captación"}
+            {correccion ? "Descartar la corrección" : "Descartar esta captación"}
           </button>
         )}
 
@@ -390,7 +398,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
         {confirmarDescarte && (
           <div className="rounded-2xl bg-red-50 border border-red-200 p-3.5">
             <p className="text-[13px] text-red-800 leading-snug mb-3">
-              {esCorreccion
+              {correccion
                 ? "Se perderán los cambios de esta corrección. La captación que ya está en la oficina no se toca."
                 : "Se perderá lo que llevas escrito. No se puede deshacer."}
             </p>
@@ -422,8 +430,9 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
         <PreviewModal
           ficha={ficha}
           pin={pin}
-          esCorreccion={esCorreccion}
+          esCorreccion={correccion}
           onClose={() => setPreview(false)}
+          onFin={onFinEnvio}
           onEnviada={onEnviada}
         />
       )}

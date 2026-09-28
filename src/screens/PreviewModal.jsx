@@ -3,23 +3,49 @@ import { X, Send, Loader2, Check, CloudOff, ServerCrash } from "lucide-react";
 import { textoFicha } from "../lib/resumen.js";
 import { enviarAlServidor, encolar } from "../lib/cola.js";
 import { useToast } from "../hooks/useToast.jsx";
+import { EnvioHecho } from "../components/EnvioHecho.jsx";
 
-export function PreviewModal({ ficha, pin, onClose, onEnviada, esCorreccion = false }) {
+/* Lo que dura el acuse de recibo antes de que el modal se cierre solo. El
+   dibujo termina sobre 1,1 s; el resto es para leer la referencia. */
+const DURACION_ACUSE = 1800;
+
+export function PreviewModal({ ficha, pin, onClose, onFin, onEnviada, esCorreccion = false }) {
   const texto = textoFicha(ficha);
   const [estado, setEstado] = useState("idle"); // idle | enviando | ok | offline | servidor | rechazada
   const [detalle, setDetalle] = useState("");
   const yaArchivada = useRef(false);
+  const yaCerrada = useRef(false);
+  /* Un envío es una corrección o no lo es de principio a fin: archivar la
+     ficha la mete en el historial, y a partir de ahí quien mire dirá que es
+     "una que ya existe". Sin esto, enviar una captación nueva terminaba
+     diciendo "Corrección enviada". */
+  const esCorreccionRef = useRef(esCorreccion);
+  const correccion = esCorreccionRef.current;
   const dialogRef = useRef(null);
   const toast = useToast();
+
+  /* Cerrar el modal y, si la ficha llegó a archivarse, dar por terminado el
+     envío: vaciar el formulario y pasar al historial. Antes eso lo hacía la
+     app sola a los 0,7 s de archivar, y se llevaba por delante el aviso de
+     "sin conexión" —tres líneas— antes de que diera tiempo a leerlo. Ahora lo
+     manda el cierre: solo cuando ha salido, y cuando el agente quiera si se
+     ha quedado en cola. */
+  const cerrar = () => {
+    if (yaCerrada.current) return;
+    yaCerrada.current = true;
+    onClose();
+    if (yaArchivada.current) onFin?.();
+  };
 
   useEffect(() => {
     dialogRef.current?.focus();
     const onKey = (e) => {
-      if (e.key === "Escape" && estado !== "enviando") onClose();
+      if (e.key === "Escape" && estado !== "enviando") cerrar();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, estado]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose, onFin, estado]);
 
   const enviar = async () => {
     if (estado === "enviando" || estado === "ok") return;
@@ -29,7 +55,7 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada, esCorreccion = fa
     if (res.ok) {
       archivar({ estado: "enviada", recibida: res.recibida, envios: res.envios });
       setEstado("ok");
-      setTimeout(onClose, 1500);
+      setTimeout(cerrar, DURACION_ACUSE);
       return;
     }
 
@@ -61,8 +87,22 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada, esCorreccion = fa
     : "#cf731c";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end" onClick={estado === "enviando" ? undefined : onClose}>
+    <div className="fixed inset-0 z-50 flex items-end" onClick={estado === "enviando" ? undefined : cerrar}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+
+      {/* El acuse tapa la pantalla entera, no solo la hoja: es el momento que
+          el agente se lleva, y detrás no queda nada que mirar. Se come el
+          toque para que un dedo que aún está donde estaba el botón de enviar
+          no se lo salte sin querer. */}
+      {estado === "ok" && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          role="status"
+          className="absolute inset-0 z-20 bg-white flex items-center justify-center animate-[envio-fondo_.25s_ease-out]"
+        >
+          <EnvioHecho referencia={ficha?.data?.referencia} esCorreccion={correccion} />
+        </div>
+      )}
       <div
         ref={dialogRef}
         tabIndex={-1}
@@ -75,11 +115,11 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada, esCorreccion = fa
         <div className="w-10 h-1.5 bg-gray-200 rounded-full mx-auto mt-3" aria-hidden="true" />
         <div className="flex items-center justify-between px-6 pt-3 pb-2">
           <h2 id="preview-titulo" className="text-[18px] font-bold text-ios-texto">
-            {esCorreccion ? "Revisar y reenviar" : "Revisar y enviar"}
+            {correccion ? "Revisar y reenviar" : "Revisar y enviar"}
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={cerrar}
             aria-label="Cerrar"
             className="w-8 h-8 rounded-full bg-ios-fondo flex items-center justify-center text-ios-texto2"
           >
@@ -89,7 +129,7 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada, esCorreccion = fa
 
         <div className="px-6 overflow-y-auto pb-4 flex-1">
           <p className="text-[12.5px] text-ios-texto2 mb-3 leading-snug">
-            {esCorreccion
+            {correccion
               ? "Esto sustituirá a lo que la oficina tiene ahora mismo."
               : "Esto es lo que recibirá la oficina. Repásalo antes de enviar."}
           </p>
@@ -111,7 +151,7 @@ export function PreviewModal({ ficha, pin, onClose, onEnviada, esCorreccion = fa
               : estado === "offline" ? (<><CloudOff size={18} aria-hidden="true" /> Guardada · reintentar ahora</>)
               : estado === "servidor" ? (<><ServerCrash size={18} aria-hidden="true" /> Guardada · reintentar ahora</>)
               : estado === "rechazada" ? (<><Send size={18} aria-hidden="true" /> Reintentar</>)
-              : (<><Send size={18} aria-hidden="true" /> {esCorreccion ? "Reenviar corregida" : "Enviar a la oficina"}</>)}
+              : (<><Send size={18} aria-hidden="true" /> {correccion ? "Reenviar corregida" : "Enviar a la oficina"}</>)}
           </button>
 
           <p className="text-center text-[12px] mt-2 leading-snug" role="status">

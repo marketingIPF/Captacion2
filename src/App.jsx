@@ -328,19 +328,24 @@ export default function App() {
     });
   }, [ficha]);
 
-  const onEnviada = useCallback(
-    (f, envio) => {
-      setSent((p) => podarHistorial([...p.filter((x) => x.id !== f.id), { ...f, fecha: new Date().toISOString(), envio }]));
-      setDrafts((p) => p.filter((d) => d.id !== f.id));
-      setEnCola(pendientes());
-      setTimeout(() => {
-        setFicha(fichaVacia(agente));
-        remove(K.BORRADOR_ACTIVO);
-        setTab("historial");
-      }, 700);
-    },
-    [agente]
-  );
+  /* Archivar la ficha. Pasa en cuanto se sabe el resultado —haya salido o se
+     haya quedado en cola—, porque si el móvil se apaga aquí tiene que quedar
+     constancia. Lo que NO hace es cambiar de pantalla. */
+  const onEnviada = useCallback((f, envio) => {
+    setSent((p) => podarHistorial([...p.filter((x) => x.id !== f.id), { ...f, fecha: new Date().toISOString(), envio }]));
+    setDrafts((p) => p.filter((d) => d.id !== f.id));
+    setEnCola(pendientes());
+  }, []);
+
+  /* Dar el envío por terminado: formulario en blanco y al historial. Lo
+     dispara el cierre del modal, no el archivado. Iba a los 0,7 s de
+     archivar, y eso borraba de la pantalla el aviso de "no hay conexión,
+     saldrá sola" —tres líneas— antes de que se pudiera leer. */
+  const onFinEnvio = useCallback(() => {
+    setFicha(fichaVacia(agente));
+    remove(K.BORRADOR_ACTIVO);
+    setTab("historial");
+  }, [agente]);
 
   /* Sirve para borradores y para corregir una ya enviada: en el segundo caso
      la ficha conserva su id, así que al reenviarla el servidor actualiza la
@@ -442,6 +447,7 @@ export default function App() {
           setFicha={setFicha}
           onSaveDraft={saveDraft}
           onEnviada={onEnviada}
+          onFinEnvio={onFinEnvio}
           onChangeAgent={setAgenteActivo}
           esCorreccion={corrigiendo}
           onDescartar={descartarFicha}

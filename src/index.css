@@ -178,6 +178,76 @@ body {
   }
 }
 
+/* ── El acuse de una captación enviada ────────────────────────────────────
+   Las piezas de components/EnvioHecho.jsx. Los retardos las encadenan: el
+   avión se va (0 → 0,45 s), el círculo entra (0,25 → 0,75), el visto se
+   dibuja (0,5 → 0,88) y los dos textos suben detrás. Termina sobre 1,1 s;
+   el modal se cierra a 1,8 (DURACION_ACUSE en PreviewModal.jsx), que deja
+   leer la referencia sin hacer esperar a nadie.                          */
+
+@keyframes envio-fondo {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes envio-avion {
+  from { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+  to   { opacity: 0; transform: translate(46px, -46px) rotate(12deg); }
+}
+.envio-avion {
+  animation: envio-avion 0.45s cubic-bezier(0.4, 0, 0.8, 0.2) forwards;
+}
+
+@keyframes envio-circulo {
+  0%   { opacity: 0; transform: scale(0.2); }
+  60%  { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.envio-circulo {
+  animation: envio-circulo 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+
+/* Dos ondas que salen del círculo, como el aviso de un mensaje entregado.
+   Quedan en opacidad 0, que es su estado en reposo: no hacen falta después. */
+@keyframes envio-onda {
+  from { opacity: 0.45; transform: scale(0.55); }
+  to   { opacity: 0; transform: scale(1.35); }
+}
+.envio-onda {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid #16a34a;
+  opacity: 0;
+  animation: envio-onda 0.9s ease-out 0.45s;
+}
+.envio-onda-2 {
+  animation-delay: 0.65s;
+}
+
+/* El trazo mide unos 27; se esconde corriéndolo entero y se deja a 0, que es
+   el visto completo, para que con el movimiento reducido se vea entero. */
+@keyframes envio-visto {
+  from { stroke-dashoffset: 27; }
+  to   { stroke-dashoffset: 0; }
+}
+.envio-visto {
+  stroke-dasharray: 27;
+  stroke-dashoffset: 0;
+  animation: envio-visto 0.38s cubic-bezier(0.65, 0, 0.35, 1) 0.5s backwards;
+}
+
+@keyframes envio-texto {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.envio-texto {
+  animation: envio-texto 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.62s backwards;
+}
+.envio-texto-2 {
+  animation-delay: 0.74s;
+}
+
 /* ── Impresión ────────────────────────────────────────────────────────────
    El panel no se imprime tal cual: se compone un documento aparte, pensado
    para el papel. En pantalla está oculto; al imprimir, es lo único que sale.
