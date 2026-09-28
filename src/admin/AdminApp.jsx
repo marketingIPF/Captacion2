@@ -309,7 +309,7 @@ export function AdminApp() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar por dirección, población, referencia o agente…"
-                className="w-full rounded-xl pl-10 pr-4 py-2.5 text-[14px] outline-none border transition bg-white dark:bg-ios-superficie-osc text-ios-texto dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20"
+                className="neu-hundido w-full rounded-xl pl-10 pr-4 py-2.5 text-[14px] outline-none border border-transparent transition text-ios-texto dark:text-ios-texto-osc focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20"
               />
             </div>
             <div className="flex gap-2 shrink-0">
@@ -398,7 +398,7 @@ export function AdminApp() {
             quedaban en x≈540 y hacían que TODA la página del panel se
             desplazara en horizontal en un móvil. Con esto las recorta la
             propia caja. */}
-        <div className="relative rounded-2xl border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-superficie-osc overflow-x-auto">
+        <div className="relative neu rounded-2xl overflow-x-auto">
           {cargando && fichas.length === 0 && (
             <div className="py-20 flex justify-center"><Loader2 size={24} className="animate-spin text-rk-naranja" aria-label="Cargando" /></div>
           )}
@@ -664,7 +664,7 @@ function Cabecera({ campo, orden, onOrdenar, children, className = "", alineacio
 
 function Tarjeta({ valor, etiqueta, destacada }) {
   return (
-    <div className={`rounded-2xl p-4 border ${destacada ? "bg-rk-soft border-rk-softBorde dark:bg-rk-naranja/15 dark:border-rk-naranja/30" : "bg-white dark:bg-ios-superficie-osc border-ios-borde dark:border-ios-borde-osc"}`}>
+    <div className={`rounded-2xl p-4 ${destacada ? "border bg-rk-soft border-rk-softBorde dark:bg-rk-naranja/15 dark:border-rk-naranja/30" : "neu"}`}>
       <div className={`text-[24px] font-extrabold leading-none ${destacada ? "text-[#a95a12] dark:text-[#f0a25a]" : "text-ios-texto dark:text-ios-texto-osc"}`}>{valor}</div>
       <div className={`text-[12px] mt-1.5 ${destacada ? "text-[#a95a12] dark:text-[#f0a25a]" : "text-ios-texto2 dark:text-ios-texto2-osc"}`}>{etiqueta}</div>
     </div>
@@ -684,8 +684,10 @@ function Chip({ activo, onClick, color, children }) {
       /* La letra baja un punto en móvil y el hueco se aprieta, que es lo que
          ahorra una fila; el alto se mantiene en 40 px porque por debajo de eso
          un chip se vuelve difícil de acertar con el dedo. */
+      /* El filtro activo se queda macizo, con el color de su fase: es la
+         respuesta a "qué estoy mirando" y no puede ser un matiz. */
       className={`shrink-0 rounded-xl px-2.5 py-2.5 text-[12px] sm:px-3 sm:text-[13px] font-semibold border transition active:scale-95 whitespace-nowrap ${
-        activo ? "text-white border-transparent" : "bg-white dark:bg-ios-superficie-osc text-gray-700 dark:text-ios-texto-osc border-ios-borde dark:border-ios-borde-osc"
+        activo ? "text-white border-transparent" : "neu-suave text-gray-700 dark:text-ios-texto-osc border-transparent"
       }`}
       style={activo ? { background: color || TINTA_MARCA } : undefined}
     >

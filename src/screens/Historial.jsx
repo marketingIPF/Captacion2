@@ -114,7 +114,7 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar por dirección, población, referencia…"
-              className="w-full bg-white rounded-2xl pl-10 pr-4 py-3 text-[14px] outline-none border border-ios-borde focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20 transition"
+              className="neu-hundido w-full rounded-2xl pl-10 pr-4 py-3 text-[14px] outline-none border border-transparent focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20 transition"
             />
           </div>
         )}
@@ -135,7 +135,7 @@ export function Historial({ drafts, sent, enCola = 0, onOpenDraft, onReintentar,
           const estadoEnvio = f.envio?.estado || "enviada";
 
           return (
-            <li key={f.id} className="bg-white rounded-2xl shadow-sm border border-ios-borde overflow-hidden">
+            <li key={f.id} className="neu rounded-2xl overflow-hidden">
               <div className="flex items-center gap-3 p-3.5">
                 <div className="w-11 h-11 rounded-xl bg-rk-soft flex items-center justify-center shrink-0">
                   <Icon size={20} className="text-rk-naranja" aria-hidden="true" />

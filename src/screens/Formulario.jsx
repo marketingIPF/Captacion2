@@ -186,7 +186,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
           </div>
         </div>
         <div
-          className="h-1.5 bg-ios-fondo rounded-full mt-2 overflow-hidden"
+          className="neu-hundido h-2 rounded-full mt-2 overflow-hidden"
           role="progressbar"
           aria-valuenow={progreso}
           aria-valuemin={0}
@@ -209,7 +209,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
             <section
               key={sec.id}
               ref={(el) => { refSeccion.current[sec.id] = el; }}
-              className="bg-white rounded-2xl shadow-sm border border-ios-borde overflow-hidden"
+              className="neu rounded-2xl overflow-hidden"
             >
               <h2>
                 <button
@@ -272,7 +272,7 @@ export function Formulario({ agente, agentes, pin, ficha, setFicha, onSaveDraft,
                             id="agente-select"
                             value={agente.id}
                             onChange={(e) => onChangeAgent(e.target.value)}
-                            className="w-full appearance-none bg-white rounded-xl pl-10 pr-9 py-3 text-[15px] font-medium text-ios-texto outline-none border border-ios-borde focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20 transition"
+                            className="neu-hundido w-full appearance-none rounded-xl pl-10 pr-9 py-3 text-[15px] font-medium text-ios-texto outline-none border border-transparent focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20 transition"
                           >
                             {agentes.map((a) => (
                               <option key={a.id} value={a.id}>{a.name}</option>

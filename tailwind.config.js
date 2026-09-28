@@ -24,7 +24,11 @@ export default {
           separador: "#d1d1d6",
           texto: "#1c1c1e",
           texto2: "#6c6c70",
-          texto3: "#8e8e93",
+          /* Variable, no un valor fijo: el gris que se lee sobre el fondo
+             claro es ilegible sobre el oscuro del panel, y al revés. Se define
+             en index.css para los dos modos. Sin opacidades (text-ios-texto3/50
+             no funcionaría con var()): no se usa ninguna. */
+          texto3: "var(--ios-texto3)",
           "fondo-osc": "#1c1c1e",
           "superficie-osc": "#2c2c2e",
           "elevada-osc": "#3a3a3c",

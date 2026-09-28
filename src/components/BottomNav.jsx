@@ -10,7 +10,7 @@ export function BottomNav({ tab, setTab, badge = 0 }) {
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-xl border-t border-ios-borde flex justify-around pt-2 px-4 z-40"
+      className="fixed bottom-0 left-0 right-0 max-w-md mx-auto neu rounded-t-2xl flex justify-around pt-2 px-4 z-40"
       style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 10px)" }}
     >
       {ITEMS.map((it) => {

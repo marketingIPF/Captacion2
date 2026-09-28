@@ -73,6 +73,73 @@ body {
   }
 }
 
+/* ── Neumorfismo ──────────────────────────────────────────────────────────
+   Relieve suave: la superficie es del MISMO color que el fondo y son las dos
+   sombras —una clara arriba-izquierda y otra oscura abajo-derecha— las que la
+   levantan o la hunden. Los tonos salen del fondo de la app (#f2f2f7) ±34 por
+   canal, que es la proporción del generador de neumorphism.io.
+
+   Se usa con medida, y hay sitios donde NO se usa a propósito:
+   - El botón naranja de enviar: una acción principal tiene que verse como un
+     botón, no como un relieve sutil.
+   - Las etiquetas de fase y los avisos de error: su contraste está medido y
+     comprobado, y el relieve no aporta nada ahí.
+   Neumorfismo mal usado esconde los bordes de las cosas; esta app se usa en la
+   calle, con sol y a pulso. */
+:root {
+  /* El gris de los textos de ayuda. Era #8e8e93 fijo y se quedaba en 2,9:1
+     sobre el fondo claro —por debajo del mínimo legible— en textos de 11 px
+     que además se leen en la calle y con sol. */
+  --ios-texto3: #6c6c70;
+
+  --neu-base: #f2f2f7;
+  --neu-oscura: #d0d0d5;
+  --neu-clara: #ffffff;
+}
+
+.neu {
+  background: var(--neu-base);
+  box-shadow: 6px 6px 12px var(--neu-oscura), -6px -6px 12px var(--neu-clara);
+}
+
+/* Para piezas pequeñas —chips, iconos, la barra inferior—, donde una sombra
+   de 12 px se comería el espacio entre elementos. */
+.neu-suave {
+  background: var(--neu-base);
+  box-shadow: 3px 3px 6px var(--neu-oscura), -3px -3px 6px var(--neu-clara);
+}
+
+/* Hundido: campos donde se escribe y lo que está pulsado. Es la convención
+   del estilo y además dice algo cierto — aquí se mete contenido. */
+.neu-hundido {
+  background: var(--neu-base);
+  box-shadow: inset 4px 4px 8px var(--neu-oscura), inset -4px -4px 8px var(--neu-clara);
+}
+
+/* El modo oscuro se limita al PANEL, que es la única de las dos apps que lo
+   tiene. Atado a :root, la app del agente —siempre clara— se volvía oscura en
+   cuanto el móvil estaba en modo oscuro: superficies negras con el texto
+   negro encima, ilegible. La marca data-tema la pone solo el panel. */
+@media (prefers-color-scheme: dark) {
+  [data-tema="panel"] {
+    /* Sobre el gris oscuro del panel hay que ACLARARLO, no oscurecerlo. */
+    --ios-texto3: #98989d;
+
+    --neu-base: #2c2c2e;
+    --neu-oscura: #1e1e20;
+    --neu-clara: #3a3a3c;
+  }
+}
+
+/* Quien pida menos movimiento suele agradecer también menos adorno, y en una
+   pantalla de bajo contraste estas sombras desaparecen igualmente. */
+@media (prefers-contrast: more) {
+  .neu, .neu-suave, .neu-hundido {
+    box-shadow: none;
+    border: 1px solid var(--ios-borde, #c7c7cc);
+  }
+}
+
 /* ── Impresión ────────────────────────────────────────────────────────────
    El panel no se imprime tal cual: se compone un documento aparte, pensado
    para el papel. En pantalla está oculto; al imprimir, es lo único que sale.

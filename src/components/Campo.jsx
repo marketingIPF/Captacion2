@@ -2,9 +2,13 @@ import { memo } from "react";
 import { Check } from "lucide-react";
 import { limpiarNumero } from "../lib/validacion.js";
 
+/* Hundido: un campo donde se escribe se lee como un hueco, no como un relieve.
+   El borde se mantiene transparente en reposo pero SE PINTA al enfocar y al
+   fallar: el neumorfismo suelto deja los límites difusos, y aquí hay que ver
+   dónde se está escribiendo. */
 export const inputBase =
-  "w-full bg-white rounded-xl px-3.5 py-3 text-[15px] text-ios-texto outline-none border transition placeholder-ios-texto3";
-export const inputOk = "border-ios-borde focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20";
+  "neu-hundido w-full rounded-xl px-3.5 py-3 text-[15px] text-ios-texto outline-none border transition placeholder-ios-texto3";
+export const inputOk = "border-transparent focus:border-rk-naranja focus:ring-2 focus:ring-rk-naranja/20";
 export const inputErr = "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20";
 export const lblBase = "text-[12px] font-semibold text-ios-texto2 mb-1.5 block";
 
@@ -95,8 +99,11 @@ export const Campo = memo(function Campo({ def, value, error, onChange, onBlur, 
                 type="button"
                 aria-pressed={act}
                 onClick={() => onChange(def.key, act ? "" : o)}
+                /* La opción elegida se queda en naranja macizo, no hundida:
+                   es un dato de la ficha y tiene que cantar. El relieve se
+                   reserva para las que no están elegidas. */
                 className={`px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition active:scale-95 ${
-                  act ? "bg-rk-naranja text-white border-transparent shadow-sm" : "bg-white text-gray-700 border-ios-borde"
+                  act ? "bg-rk-naranja text-white border-transparent shadow-sm" : "neu-suave text-gray-700 border-transparent"
                 }`}
               >
                 {o}
@@ -137,7 +144,9 @@ export const Campo = memo(function Campo({ def, value, error, onChange, onBlur, 
                 aria-pressed={act}
                 onClick={() => alPulsar(o, act)}
                 className={`px-3 py-1.5 rounded-full text-[13px] font-medium border transition active:scale-95 flex items-center gap-1 ${
-                  act ? "bg-rk-soft text-rk-naranja border-rk-naranja" : "bg-white text-gray-700 border-ios-borde"
+                  act
+                    ? "neu-hundido bg-rk-soft text-rk-naranja border-rk-naranja"
+                    : "neu-suave text-gray-700 border-transparent"
                 }`}
               >
                 {act && <Check size={13} strokeWidth={3} aria-hidden="true" />}
