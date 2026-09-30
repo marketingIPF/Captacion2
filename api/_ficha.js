@@ -128,6 +128,10 @@ export const filaAFicha = (row) => ({
   importante: row.importante === true,
   importantePor: row.importante_por || null,
   notaOficina: row.nota_oficina,
+  /* Última subida a IA Gestión: null si nunca se ha hecho. */
+  iagestion: row.iagestion_estado
+    ? { estado: row.iagestion_estado, en: row.iagestion_en, por: row.iagestion_por, resultado: row.iagestion_resultado }
+    : null,
   actualizadaPor: row.actualizada_por || null,
   data: row.datos,
   propietarios: row.propietarios || [],

@@ -4,6 +4,7 @@ import { filaAFicha, filaAResumen, fichaAFila, fichaAFilaDeOficina, ESTADOS } fr
 import { notificarSinBloquear } from "./_push.js";
 import { nombreDeFicha } from "../src/lib/resumen.js";
 import { faseDe } from "../src/lib/fases.js";
+import { prepararSubida, subirFicha } from "./_iagestion.js";
 
 /* Panel de oficina. El acceso va por sesión de Neon Auth (Google), no por PIN:
    cada persona entra con su cuenta y se le puede revocar el acceso por
@@ -25,6 +26,8 @@ export default async function handler(req, res) {
     if (accion === "agentes") return agentes(res);
     if (accion === "eliminar") return await eliminar(sql, body, res, usuario);
     if (accion === "resumen") return await resumen(sql, res, usuario);
+    if (accion === "iagestion_previa") return await iagestionPrevia(sql, body, res);
+    if (accion === "iagestion_subir") return await iagestionSubir(sql, body, res, usuario);
     res.status(400).json({ error: "Acción desconocida" });
   } catch (err) {
     console.error(`Error en la acción "${accion}"`, err);
@@ -378,4 +381,71 @@ export async function resumen(sql, res, usuario) {
     from fichas where eliminada_en is null
   `;
   res.status(200).json({ porEstado, porAgente, totales, usuario });
+}
+
+/* ---------------------------------------------------------------------------
+   IA Gestión. Dos pasos a propósito: primero se ve qué se enviaría (no escribe
+   nada) y luego se confirma. Lo que se sube va a inmuebles reales del CRM.
+   ------------------------------------------------------------------------ */
+
+async function fichaParaIagestion(sql, id, res) {
+  if (!id) {
+    res.status(400).json({ error: "Falta el identificador" });
+    return null;
+  }
+  const [row] = await sql`select * from fichas where id = ${id} and eliminada_en is null`;
+  if (!row) {
+    res.status(404).json({ error: "Ficha no encontrada" });
+    return null;
+  }
+  return filaAFicha(row);
+}
+
+export async function iagestionPrevia(sql, body, res) {
+  const ficha = await fichaParaIagestion(sql, body.id, res);
+  if (!ficha) return;
+  const r = await prepararSubida(ficha);
+  if (!r.ok) return res.status(200).json({ ok: false, error: r.error, noExiste: Boolean(r.noExiste) });
+  res.status(200).json({
+    ok: true,
+    ref: r.ref,
+    inmueble: r.inmueble,
+    /* Las observaciones (HTML) se muestran como líneas; aquí solo lo demás. */
+    parametros: Object.fromEntries(Object.entries(r.parametros).filter(([k]) => k !== "Observaciones_Privadas")),
+    lineas: r.lineas,
+    avisos: r.avisos,
+  });
+}
+
+export async function iagestionSubir(sql, body, res, usuario) {
+  if (body.confirmar !== true) return res.status(400).json({ error: "Falta la confirmación" });
+  const ficha = await fichaParaIagestion(sql, body.id, res);
+  if (!ficha) return;
+
+  const r = await subirFicha(ficha);
+  const resultado = {
+    ok: r.ok === true,
+    ref: r.ref || null,
+    inmueble: r.inmueble || null,
+    aplicados: (r.aplicados || []).map((a) => a.campo),
+    noGuardados: r.noGuardados || [],
+    avisos: r.avisos || [],
+    error: r.error || null,
+  };
+  const estado = resultado.ok ? "subida" : "error";
+
+  const [row] = await sql`
+    update fichas set
+      iagestion_estado = ${estado},
+      iagestion_en = now(),
+      iagestion_por = ${usuario?.email || null},
+      iagestion_resultado = ${JSON.stringify(resultado)}::jsonb
+    where id = ${body.id}
+    returning iagestion_estado, iagestion_en, iagestion_por, iagestion_resultado
+  `;
+  res.status(200).json({
+    ok: resultado.ok,
+    resultado,
+    iagestion: { estado: row.iagestion_estado, en: row.iagestion_en, por: row.iagestion_por, resultado: row.iagestion_resultado },
+  });
 }

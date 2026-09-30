@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, AlertTriangle, Pencil, Printer, Trash2 } from "lucide-react";
+import { X, Loader2, Phone, Mail, MapPin, MessageCircle, AlertCircle, AlertTriangle, Pencil, Printer, Trash2, Upload, Check } from "lucide-react";
 import {
   bloquesFicha, bloqueComoTexto, textoFicha, tituloFicha, direccionCompleta, cifrasClave,
 } from "../lib/resumen.js";
@@ -12,6 +12,7 @@ import { useCopiar } from "./useCopiar.js";
 import { FilaCopiable, BotonCopiar, ValorCopiable } from "./Copiable.jsx";
 import { EditarFicha } from "./EditarFicha.jsx";
 import { FichaImprimible } from "./Imprimible.jsx";
+import { etiquetaIagestion, valorIagestion } from "../lib/etiquetasIagestion.js";
 
 const soloDigitos = (t) => String(t || "").replace(/[^\d+]/g, "");
 
@@ -24,6 +25,8 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
   const [imprimiendo, setImprimiendo] = useState(false);
   const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
   const [borrando, setBorrando] = useState(false);
+  /* IA Gestión: { cargando } · { previa } · { subiendo } · { resultado } · { error } */
+  const [ia, setIa] = useState({});
   const panel = useRef(null);
   const campoNota = useRef(null);
   const { copiar, copiado, error: errorCopia } = useCopiar();
@@ -95,6 +98,28 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
       setError(e.message);
     } finally {
       setGuardando(false);
+    }
+  };
+
+  /* Paso 1: ver qué se enviaría (no escribe nada). Paso 2: confirmar. */
+  const prepararIa = async () => {
+    setIa({ cargando: true });
+    try {
+      const r = await llamar("iagestion_previa", { id });
+      setIa(r.ok ? { previa: r } : { error: r.error });
+    } catch (e) {
+      setIa({ error: e.message });
+    }
+  };
+
+  const subirIa = async () => {
+    setIa((p) => ({ ...p, subiendo: true }));
+    try {
+      const r = await llamar("iagestion_subir", { id, confirmar: true });
+      setFicha((f) => ({ ...f, iagestion: r.iagestion }));
+      setIa({ resultado: r.resultado });
+    } catch (e) {
+      setIa({ error: e.message });
     }
   };
 
@@ -415,6 +440,116 @@ export function FichaDetalle({ id, enfocar, onCerrar, onActualizada, onEliminada
                   </p>
                 </section>
               )}
+
+              {/* IA Gestión */}
+              <section className="rounded-xl border border-ios-borde dark:border-ios-borde-osc p-3.5">
+                <h3 className="text-[11px] font-bold tracking-[0.12em] uppercase text-rk-naranja mb-2">IA Gestión</h3>
+
+                {ficha.iagestion && !ia.previa && !ia.resultado && (
+                  <p className={`text-[12.5px] mb-2.5 ${ficha.iagestion.estado === "subida" ? "text-emerald-700 dark:text-emerald-400" : "text-red-600"}`}>
+                    {ficha.iagestion.estado === "subida" ? "Subida" : "Último intento con error"} el {fmtFecha(ficha.iagestion.en)}
+                    {ficha.iagestion.por ? ` por ${ficha.iagestion.por}` : ""}
+                    {ficha.iagestion.resultado?.error ? ` — ${ficha.iagestion.resultado.error}` : ""}
+                  </p>
+                )}
+
+                {!ia.previa && !ia.resultado && (
+                  <>
+                    <p className="text-[12.5px] text-ios-texto2 dark:text-ios-texto2-osc mb-2.5 leading-snug">
+                      Actualiza en IA Gestión el inmueble con la referencia de esta ficha. Primero verás qué se enviará; no se escribe nada hasta que lo confirmes.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={prepararIa}
+                      disabled={ia.cargando}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-semibold border border-ios-borde dark:border-ios-borde-osc bg-white dark:bg-ios-elevada-osc text-ios-texto dark:text-ios-texto-osc active:scale-95 disabled:opacity-50"
+                    >
+                      {ia.cargando ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                      {ia.cargando ? "Comprobando…" : "Preparar subida a IA Gestión"}
+                    </button>
+                  </>
+                )}
+
+                {ia.error && (
+                  <p className="mt-2.5 text-[12.5px] text-red-600 flex items-start gap-1.5">
+                    <AlertCircle size={15} className="shrink-0 mt-0.5" /> {ia.error}
+                  </p>
+                )}
+
+                {ia.previa && (
+                  <div className="space-y-3">
+                    <p className="text-[12.5px] text-ios-texto dark:text-ios-texto-osc">
+                      Se actualizará el inmueble <strong>{ia.previa.ref}</strong> ({ia.previa.inmueble.Tipo || "sin tipo"} · {ia.previa.inmueble.Estado}) — {ia.previa.inmueble.Direccion}
+                    </p>
+                    {ia.previa.avisos.map((a) => (
+                      <p key={a} className="text-[12.5px] text-amber-700 dark:text-amber-300 flex items-start gap-1.5">
+                        <AlertTriangle size={14} className="shrink-0 mt-0.5" /> {a}
+                      </p>
+                    ))}
+                    <div>
+                      <p className="text-[11.5px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc mb-1">Campos que se guardarán</p>
+                      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12.5px]">
+                        {Object.entries(ia.previa.parametros).map(([k, v]) => (
+                          <div key={k} className="contents">
+                            <span className="text-ios-texto2 dark:text-ios-texto2-osc">{etiquetaIagestion(k)}</span>
+                            <span className="text-ios-texto dark:text-ios-texto-osc break-words">{valorIagestion(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {ia.previa.lineas.length > 0 && (
+                      <div>
+                        <p className="text-[11.5px] font-semibold text-ios-texto2 dark:text-ios-texto2-osc mb-1">
+                          Van como texto en «Observaciones privadas» (IA Gestión no permite guardarlos en su campo)
+                        </p>
+                        <ul className="text-[12.5px] text-ios-texto dark:text-ios-texto-osc space-y-0.5">
+                          {ia.previa.lineas.map(([k, v]) => (
+                            <li key={k}><span className="text-ios-texto2 dark:text-ios-texto2-osc">{k}:</span> {v}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={subirIa}
+                        disabled={ia.subiendo}
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-semibold text-white bg-rk-naranja active:scale-95 disabled:opacity-50"
+                      >
+                        {ia.subiendo ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                        {ia.subiendo ? "Subiendo…" : "Confirmar y subir"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIa({})}
+                        disabled={ia.subiendo}
+                        className="px-3.5 py-2 rounded-xl text-[13px] font-semibold border border-ios-borde dark:border-ios-borde-osc text-ios-texto2 dark:text-ios-texto2-osc active:scale-95 disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {ia.resultado && (
+                  <div className="space-y-2">
+                    <p className={`text-[13px] font-semibold flex items-center gap-1.5 ${ia.resultado.ok ? "text-emerald-700 dark:text-emerald-400" : "text-red-600"}`}>
+                      {ia.resultado.ok ? <Check size={16} /> : <AlertCircle size={16} />}
+                      {ia.resultado.ok
+                        ? `Subida correcta: ${ia.resultado.aplicados.length} campos guardados y comprobados.`
+                        : ia.resultado.error || "Algunos campos no se han guardado."}
+                    </p>
+                    {ia.resultado.noGuardados.length > 0 && (
+                      <ul className="text-[12.5px] text-red-600 space-y-0.5">
+                        {ia.resultado.noGuardados.map((n) => (
+                          <li key={n.campo}>{etiquetaIagestion(n.campo)}: enviado «{String(n.enviado ?? "")}», IA Gestión guarda «{String(n.leido ?? "vacío")}»</li>
+                        ))}
+                      </ul>
+                    )}
+                    <button type="button" onClick={() => setIa({})} className="text-[12.5px] font-semibold text-rk-naranja">Cerrar</button>
+                  </div>
+                )}
+              </section>
 
               {/* Seguimiento */}
               <section>

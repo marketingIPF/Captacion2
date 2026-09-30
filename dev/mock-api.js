@@ -382,10 +382,32 @@ export function mockApi() {
             });
           }
 
+          if (body.accion === "iagestion_previa") {
+            const f = fichas.get(body.id);
+            if (!f) return responder(res, 404, { error: "Ficha no encontrada" });
+            const d = f.datos || {};
+            if (!d.referencia) return responder(res, 200, { ok: false, error: "La ficha no tiene referencia: sin ella no se sabe qué inmueble de IA Gestión actualizar." });
+            return responder(res, 200, {
+              ok: true, ref: String(d.referencia).replace(/\D/g, "").padStart(5, "0"),
+              inmueble: { Id: 2400000, Ref_CRM: "05618", Tipo: "Pisos", Estado: "Pendiente", Fecha: "2026-09-01 10:00:00", Direccion: d.direccion },
+              parametros: { Direccion: d.direccion, Poblacion: d.poblacion, Precio: 245000, Dormitorios: 3, Exclusiva: 1, CheckVentanasAluminio: "si" },
+              lineas: [["Cargas", "No"], ["Derrama aprobada", "No"], ["Orientación", "Sur"]],
+              avisos: [],
+            });
+          }
+          if (body.accion === "iagestion_subir") {
+            const f = fichas.get(body.id);
+            if (!f) return responder(res, 404, { error: "Ficha no encontrada" });
+            if (body.confirmar !== true) return responder(res, 400, { error: "Falta la confirmación" });
+            const resultado = { ok: true, ref: "05618", inmueble: null, aplicados: ["Direccion", "Poblacion", "Precio"], noGuardados: [], avisos: [], error: null };
+            f.iagestion = { estado: "subida", en: new Date().toISOString(), por: "julia@inmobiliariapalanca.com", resultado };
+            return responder(res, 200, { ok: true, resultado, iagestion: f.iagestion });
+          }
+
           /* Sin esto, una acción que el simulador no conozca caía en el
              listado y devolvía algo sin la forma esperada: un fallo real
              pasaba por respuesta válida. */
-          const CONOCIDAS = ["listar", "detalle", "actualizar", "editar", "eliminar", "resumen", "crear", "agentes", undefined];
+          const CONOCIDAS = ["listar", "detalle", "actualizar", "editar", "eliminar", "resumen", "crear", "agentes", "iagestion_previa", "iagestion_subir", undefined];
           if (!CONOCIDAS.includes(body.accion)) {
             return responder(res, 400, { error: `Acción desconocida: ${body.accion}` });
           }

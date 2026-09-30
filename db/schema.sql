@@ -62,6 +62,12 @@ create table if not exists fichas (
   creada_por        text,
   creada_por_nombre text,
 
+  -- Última subida a IA Gestión (la dispara la oficina; ver migración 016).
+  iagestion_estado    text check (iagestion_estado in ('subida', 'error')),
+  iagestion_en        timestamptz,
+  iagestion_por       text,
+  iagestion_resultado jsonb,
+
   -- La ficha íntegra. Así añadir un campo al formulario no obliga a migrar.
   datos           jsonb not null,
   propietarios    jsonb not null default '[]'::jsonb

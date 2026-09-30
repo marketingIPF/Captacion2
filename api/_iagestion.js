@@ -1,18 +1,34 @@
-/* Traducción de nuestra ficha al formato del CRM iagestión.
-   Aislado y sin efectos secundarios para poder probarlo y, sobre todo, para
-   poder VER lo que se enviaría antes de escribir nada en el CRM.
+/* Envío de la ficha de captación a IA Gestión.
 
-   Manual: POST https://pasarelas.iagestion.com/api-gestioninmo/v2/<servicio>/
-   Autenticación: `usuario` y `password` como parámetros del propio POST.   */
+   CÓMO FUNCIONA (todo comprobado contra la API real el 2026-09-30, no sale del
+   manual, que se equivoca en nombres y no dice qué se puede escribir):
+
+   1. El inmueble YA EXISTE: lo crea /enviar-exclusiva-firmada al convertir el
+      prospecto. Aquí nunca se crea nada: se busca por Ref_CRM y se ACTUALIZA con
+      actualizar_inmueble.
+   2. La API tiene una lista blanca FIJA y pequeña. Lo que no está en ella se
+      descarta en silencio (responde "actualizado: true" igualmente). Por eso
+      todo lo que no se puede subir va como texto a Observaciones_Privadas.
+   3. Trampas conocidas que este módulo evita:
+      - actualizar_inmueble SIN `Fecha` pone la fecha del inmueble a 0000-00-00.
+        Se lee la actual y se reenvía SIEMPRE.
+      - Orientacion pasa la lista blanca pero se guarda vacía → no se envía nunca.
+      - CheckPortalesWeb = 1 lo deja en "no" (despublica de la web) → no se envía.
+      - Tipo con el valor que devuelve la lectura ("Pisos") deja el tipo vacío o
+        da un 400. Solo se manda Tipo si el inmueble no lo tiene, y con el
+        vocabulario de ENTRADA ("Piso", "Casa"…).
+      - Jardin=true / Exclusiva="Sí" guardan "no"/0: se usan 1/0 y "si" sin tilde.
+      - Estado_General traduce con pérdida ("Entrar a vivir" acaba en "Sencillo").
+      - HonorariosCedidosPorcentaje es OTRA cosa (honorarios cedidos), no se usa.
+
+   Aislado y sin efectos secundarios en fichaAParametros para poder probarlo y
+   VER lo que se enviaría antes de escribir nada.  */
 
 import { parseNumero } from "../src/lib/validacion.js";
 
 export const BASE = "https://pasarelas.iagestion.com/api-gestioninmo/v2";
 
-/* La API es PHP y espera los parámetros como formulario, no como JSON: el
-   ejemplo del manual usa CURLOPT_POSTFIELDS con un array. Enviando JSON
-   responde "Autenticación con usuario y password es obligatoria", como si
-   faltaran las credenciales. */
+/* La API es PHP y espera los parámetros como formulario, no como JSON. */
 export async function llamarIagestion(servicio, parametros = {}) {
   const usuario = process.env.IAGESTION_USUARIO;
   const password = process.env.IAGESTION_PASSWORD;
@@ -34,13 +50,8 @@ export async function llamarIagestion(servicio, parametros = {}) {
   }
 
   const texto = await respuesta.text();
-
-  /* El CRM devuelve 200 incluso cuando falla, y a veces con un error de PHP
-     en crudo en vez de JSON. Hay que mirar el contenido, no el código. */
-  let datos = null;
-  try {
-    datos = JSON.parse(texto);
-  } catch {
+  const datos = parsearJson(texto);
+  if (datos === null) {
     const fatal = /Fatal error|PDOException|SQLSTATE/i.test(texto);
     return {
       ok: false,
@@ -51,174 +62,394 @@ export async function llamarIagestion(servicio, parametros = {}) {
       crudo: texto.slice(0, 400),
     };
   }
-
+  /* El CRM devuelve 200 incluso cuando falla: hay que mirar el contenido. */
   if (datos?.error) {
     return { ok: false, estado: respuesta.status, error: String(datos.message || "Error del CRM"), datos };
   }
   return { ok: true, estado: respuesta.status, datos };
 }
 
-/* Nuestros tipos → los del CRM.
-   OJO: los valores del CRM hay que confirmarlos con el servicio tipo_inmueble;
-   estos son la conjetura razonable. `npm run iagestion:tipos` los descarga. */
-export const TIPOS = {
+/* A veces responde con DOS objetos JSON pegados (p. ej. un 400 que aun así
+   ejecuta el resto de la actualización). Se devuelve el primero. */
+export function parsearJson(texto) {
+  try {
+    return JSON.parse(texto);
+  } catch {
+    let prof = 0;
+    let enCadena = false;
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i];
+      if (enCadena) {
+        if (c === "\\") i++;
+        else if (c === '"') enCadena = false;
+      } else if (c === '"') enCadena = true;
+      else if (c === "{") prof++;
+      else if (c === "}" && --prof === 0) {
+        try {
+          return JSON.parse(texto.slice(texto.indexOf("{"), i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Nombres
+   ------------------------------------------------------------------------- */
+
+/* Lista blanca REAL de escritura, con el nombre de ENTRADA (a veces distinto del
+   de lectura). Cualquier parámetro que no esté aquí no se envía jamás. */
+export const ESCRIBIBLES = new Set([
+  "Precio", "Direccion", "Numero", "Planta", "Puerta", "CP", "Provincia", "Municipio", "Poblacion", "RC",
+  "Antiguedad", "Exclusiva", "Observaciones_Publicas", "Observaciones_Privadas",
+  "Metros_Construidos", "Metros_Utiles", "Metros_Parcela", "Metros_Terraza", "Metros_Salon", "Metros_Fachada",
+  "Dormitorios", "Banos", "Aseos", "Ascensor", "Terraza", "Trastero", "Garajes", "Piscina", "Jardin",
+  "es_atico", "es_duplex",
+  "IBI", "Gastos_Comunidad", "Certificado_Energetico", "Calefaccion", "Estado_General",
+  "CheckVentanasPVC", "CheckVentanasAluminio", "CheckVentanasMadera", "CheckVentanasClimalit",
+  "CheckSueloParquet", "CheckSueloTarima", "CheckSueloCeramicaGress",
+  "CheckVistasMar", "CheckVistasDestacadas",
+  "Tipo",
+]);
+
+/* Nombre de entrada → columna que se lee después (para verificar lo guardado). */
+const COLUMNA = { Jardin: "CheckJardin", es_atico: "CheckAtico", es_duplex: "CheckDuplex" };
+const columnaDe = (param) => COLUMNA[param] || param;
+
+/* Estado_General: la API solo acepta estas 5 palabras y las traduce. */
+const ESTADO_GENERAL = {
+  "Para entrar": { envia: "Buen estado", guarda: "Buen estado", nota: "Para entrar" },
+  "Buen estado": { envia: "Buen estado", guarda: "Buen estado" },
+  "A reformar": { envia: "Para reformar", guarda: "A reformar" },
+  "A estrenar": { envia: "Nuevo", guarda: "A estrenar" },
+};
+
+/* Tipo de ENTRADA (no el de lectura). Solo se usa si el inmueble no tiene tipo. */
+const TIPO_ENTRADA = {
   "Piso": "Piso",
   "Ático": "Ático",
-  "Casa / Chalet": "Casa/Chalet",
+  "Casa / Chalet": "Casa",
   "Local": "Local",
-  "Terreno": "Terreno",
+  "Terreno": "Parcela",
   "Garaje": "Garaje",
 };
 
+/* ----------------------------------------------------------------------------
+   Ficha → parámetros
+   ------------------------------------------------------------------------- */
+
+const t = (v) => String(v ?? "").trim();
 const entero = (v) => {
   const n = parseNumero(v);
   return n === null ? undefined : Math.round(n);
 };
-
-const numero = (v) => {
+const decimal = (v) => {
   const n = parseNumero(v);
   return n === null ? undefined : n;
 };
+const tiene = (lista, valor) => Array.isArray(lista) && lista.includes(valor);
+const lista = (v) => (Array.isArray(v) ? v : []);
 
-/* Sus campos de superficie y precio son numéricos; los nuestros son texto en
-   formato español ("298,5", "385.000"). */
-const siNo = (v) => (v === "Sí" ? 1 : v === "No" ? 0 : undefined);
-
-const tieneEn = (lista, valor) => (Array.isArray(lista) ? (lista.includes(valor) ? 1 : 0) : undefined);
-
-/* "Carmen Ferrer Ros" → { Nombre: "Carmen", Apellidos: "Ferrer Ros" } */
-export function partirNombre(completo) {
-  const partes = String(completo || "").trim().split(/\s+/).filter(Boolean);
-  if (!partes.length) return { Nombre: "", Apellidos: "" };
-  return { Nombre: partes[0], Apellidos: partes.slice(1).join(" ") };
+/* "#5618" / "05618" / "5618" → "05618", que es como está en Ref_CRM. */
+export function normalizarReferencia(v) {
+  const dig = t(v).replace(/^#/, "").replace(/\D/g, "");
+  return dig ? dig.padStart(5, "0") : "";
 }
 
-/* Referencia única y estable: es la que evita duplicados (el CRM responde 409
-   si ya existe), así que reenviar la misma ficha no crea otra. */
-export function refIntranet(ficha) {
-  const propia = String(ficha.data?.referencia || "").trim();
-  if (propia) return propia;
-  return `RK-${String(ficha.id).replace(/-/g, "").slice(0, 10).toUpperCase()}`;
-}
-
-/* Lo que el CRM no tiene como campo propio y se perdería: se añade al final de
-   las observaciones privadas para no dejarlo fuera. */
-function observacionesPrivadas(ficha) {
-  const d = ficha.data;
-  const extra = [
-    d.refCatastral && `Ref. catastral: ${d.refCatastral}`,
-    d.cee && `Certificado energético: ${d.cee}${d.ceeLetra ? ` (${d.ceeLetra})` : ""}`,
-    d.cargas && d.cargas !== "No" && `Cargas: ${d.cargas}${d.cargasDetalle ? ` — ${d.cargasDetalle}` : ""}`,
-    d.autorizacion && `Autorización firmada: ${d.autorizacion}${d.exclusiva ? ` (${d.exclusiva})` : ""}`,
-    d.precioMin && `Precio mínimo aceptable: ${d.precioMin} €`,
-    d.comunidad && `Comunidad: ${d.comunidad} €/mes`,
-    d.ibi && `IBI: ${d.ibi} €/año`,
-    d.honorarios && `Honorarios: ${d.honorarios}${d.honorariosValor ? ` ${d.honorariosValor}` : ""}`,
-    Array.isArray(d.docs) && d.docs.length && `Documentación aportada: ${d.docs.join(", ")}`,
-    d.ocupacion && `Situación: ${d.ocupacion}`,
-    `Captada por ${ficha.agenteName} el ${new Date(ficha.creada || ficha.recibida).toLocaleDateString("es-ES")}`,
-  ].filter(Boolean);
-
-  return [d.notasInternas, extra.join("\n")].filter(Boolean).join("\n\n");
-}
-
-/* Ficha → cuerpo del POST a grabar_inmueble.
-   Devuelve { ok, datos, avisos } — los avisos son cosas que el CRM aceptará
-   pero que conviene revisar (un tipo sin equivalencia, por ejemplo). */
-export function fichaAInmueble(ficha) {
-  const d = ficha.data || {};
+/* Devuelve { parametros, lineas, avisos }.
+   - parametros: solo lo que la API guarda de verdad, ya con sus valores válidos.
+   - lineas: lo que NO se puede subir, como pares [etiqueta, valor] para las
+     observaciones privadas.
+   `actual` es el inmueble tal como está en IA Gestión (o null en la vista previa
+   sin conexión). */
+export function fichaAParametros(ficha, actual = null) {
+  const d = ficha?.data || {};
+  const p = {};
+  const lineas = [];
   const avisos = [];
 
-  const tipo = TIPOS[d.tipo];
-  if (!tipo) avisos.push(`El tipo "${d.tipo}" no tiene equivalencia conocida en el CRM`);
+  const poner = (k, v) => {
+    if (v === undefined || v === null || v === "" || (typeof v === "number" && !Number.isFinite(v))) return;
+    p[k] = v;
+  };
+  const linea = (etiqueta, valor) => {
+    const v = Array.isArray(valor) ? valor.join(", ") : t(valor);
+    if (v) lineas.push([etiqueta, v]);
+  };
+  const si = "si";
 
-  const propietario = (ficha.propietarios || []).find((p) => p?.nombre?.trim() || p?.telefono?.trim());
-  if (!propietario) avisos.push("La ficha no tiene propietario: el CRM lo aceptará sin contacto");
-  const { Nombre, Apellidos } = partirNombre(propietario?.nombre);
+  /* Ubicación */
+  poner("Direccion", t(d.direccion));
+  poner("Numero", t(d.numero));
+  poner("Planta", t(d.planta));
+  poner("Puerta", t(d.puerta));
+  poner("CP", t(d.cp));
+  poner("Provincia", t(d.provincia));
+  poner("Poblacion", t(d.poblacion));
+  poner("Municipio", t(d.poblacion));
+  poner("RC", t(d.refCatastral).toUpperCase().replace(/\s+/g, ""));
+  linea("Bloque / escalera", d.bloque);
 
-  if ((ficha.propietarios || []).filter((p) => p?.nombre?.trim()).length > 1) {
-    avisos.push("Hay más de un propietario; grabar_inmueble solo admite uno. El resto se añade con grabar_contacto + actualizar_propietarios");
+  /* Tipo: solo si IA Gestión no lo tiene (lo puso /enviar-exclusiva-firmada con
+     el texto libre del agente y, si no era un valor válido, quedó vacío). */
+  if (actual && !t(actual.Tipo)) {
+    const tipo = TIPO_ENTRADA[d.tipo];
+    if (tipo) {
+      poner("Tipo", tipo);
+      avisos.push(`El inmueble no tenía tipo en IA Gestión: se ha puesto "${tipo}". Revísalo.`);
+    } else {
+      avisos.push("El inmueble no tiene tipo en IA Gestión y la ficha no trae uno reconocible: ponlo a mano.");
+    }
+  }
+  if (d.tipo === "Ático") poner("es_atico", 1);
+
+  /* Económicos */
+  poner("Precio", entero(d.precio));
+  poner("IBI", decimal(d.ibi));
+  poner("Gastos_Comunidad", decimal(d.comunidad));
+  linea("Precio mínimo aceptable", d.precioMin && `${d.precioMin} €`);
+  if (d.derrama) linea("Derrama aprobada", d.derrama === "Sí" && d.derramaImporte ? `Sí, ${d.derramaImporte} €` : d.derrama);
+  if (d.vpo) linea("VPO", d.vpo === "Sí" && d.vpoExp ? `Sí, expediente ${d.vpoExp}` : d.vpo);
+  if (d.honorarios) {
+    linea("Honorarios pactados", d.honorariosValor ? `${d.honorarios} — ${d.honorariosValor}` : d.honorarios);
+  }
+  /* Autorización de venta / régimen → Exclusiva (1/0). "Sí" con tilde guardaría 0. */
+  if (d.autorizacion === "Sí" && d.exclusiva === "Exclusiva") poner("Exclusiva", 1);
+  else if (d.autorizacion === "Sí" && d.exclusiva === "Sin exclusiva") poner("Exclusiva", 0);
+  else linea("Autorización de venta firmada", d.autorizacion);
+
+  /* Situación legal */
+  if (d.cargas) linea("Cargas", d.cargas === "No" ? "No" : `${d.cargas}${d.cargasDetalle ? ` — ${d.cargasDetalle}` : ""}`);
+  if (d.ocupacion) linea("Situación", d.ocupacion === "Alquilado" && d.finAlquiler ? `Alquilado hasta ${d.finAlquiler}` : d.ocupacion);
+  linea("Clasificación del suelo", d.suelo);
+  linea("Documentación aportada", d.docs);
+
+  /* Certificado energético: letra, "EN TRAMITE" o "EXENTO", como los usa IA Gestión */
+  if (d.cee === "Hecho" && d.ceeLetra) poner("Certificado_Energetico", d.ceeLetra);
+  else if (d.cee === "Pendiente") poner("Certificado_Energetico", "EN TRAMITE");
+  else if (d.cee === "Exento") poner("Certificado_Energetico", "EXENTO");
+
+  /* Superficies y distribución */
+  poner("Metros_Construidos", decimal(d.mConstruidos));
+  poner("Metros_Utiles", decimal(d.mUtiles));
+  poner("Metros_Parcela", decimal(d.mParcela));
+  poner("Metros_Terraza", decimal(d.mTerraza));
+  poner("Metros_Salon", decimal(d.salon));
+  poner("Metros_Fachada", decimal(d.escaparate));
+  poner("Antiguedad", entero(d.anio));
+  poner("Dormitorios", entero(d.dormitorios));
+  poner("Banos", entero(d.banos));
+  poner("Aseos", entero(d.aseos));
+  linea("Cocina (m²)", d.cocinaM);
+  linea("Alturas del edificio", d.alturas);
+  linea("Edificabilidad", d.edificabilidad);
+  linea("Plazas de aparcamiento", d.plazas);
+  linea("Salida de humos", d.salidaHumos);
+
+  /* Extras: solo se marca lo presente, nunca se pone a 0 lo que la oficina pudo rellenar */
+  if (d.ascensor === "Sí") poner("Ascensor", 1);
+  else if (d.ascensor === "No") poner("Ascensor", 0);
+  const eq = d.equipamiento;
+  if (tiene(eq, "Terraza")) poner("Terraza", 1);
+  if (tiene(eq, "Trastero")) poner("Trastero", 1);
+  if (tiene(eq, "Garaje")) poner("Garajes", 1);
+  if (tiene(eq, "Piscina") || tiene(d.zonasComunes, "Piscina")) poner("Piscina", 1);
+  if (tiene(eq, "Jardín")) poner("Jardin", 1);
+  linea("Equipamiento sin campo en el CRM", lista(eq).filter((x) => ["Armarios empotrados", "Balcón", "Buhardilla"].includes(x)));
+  linea("Zonas comunes", lista(d.zonasComunes).filter((x) => x !== "Piscina"));
+  linea("Conserjería / vigilancia", d.conserjeria);
+  linea("A cota cero", d.cotaCero);
+
+  /* Calidades */
+  for (const [chip, col] of [["Aluminio", "CheckVentanasAluminio"], ["PVC", "CheckVentanasPVC"], ["Madera", "CheckVentanasMadera"], ["Climalit", "CheckVentanasClimalit"]]) {
+    if (tiene(d.ventanaMat, chip)) poner(col, si);
+  }
+  linea("Tipo de apertura de ventanas", d.ventanaApertura);
+  linea("Puertas interiores", d.puertas);
+  if (tiene(d.suelos, "Tarima")) poner("CheckSueloTarima", si);
+  if (tiene(d.suelos, "Gres") || tiene(d.suelos, "Porcelánico")) poner("CheckSueloCeramicaGress", si);
+  linea("Suelos sin campo en el CRM", lista(d.suelos).filter((x) => ["Terrazo", "Mármol"].includes(x)));
+  linea("Cocina", d.cocinaTipo);
+  linea("Fuegos", d.fuegos);
+  linea("Agua caliente", d.acs);
+  linea("Climatización", d.clima);
+  linea("Paredes", d.paredes);
+
+  /* Calefacción: un solo valor; si hay varios, el primero y el resto al texto */
+  const cal = lista(d.calefaccion);
+  if (cal.length) {
+    const reales = cal.filter((x) => x !== "No tiene");
+    if (!reales.length) poner("Calefaccion", "No tiene calefacción");
+    else {
+      poner("Calefaccion", reales[0]);
+      if (reales.length > 1) linea("Otra calefacción", reales.slice(1));
+    }
   }
 
-  const equip = d.equipamiento;
-  const precio = entero(d.precio);
-  if (precio === undefined) avisos.push("La ficha no tiene precio");
+  /* Estado de conservación */
+  const est = ESTADO_GENERAL[d.estado];
+  if (est) {
+    poner("Estado_General", est.envia);
+    if (est.nota) linea("Estado de conservación", `${est.nota} (IA Gestión no permite guardar "Entrar a vivir" por API)`);
+  }
 
-  const datos = {
-    /* Obligatorios */
-    Ref_Intranet: refIntranet(ficha),
-    Tipo: tipo || d.tipo,
-    Estado: "Disponible",
-    Operacion: d.operacion || "Venta",
-    Direccion: d.direccion,
+  /* Edificio y entorno */
+  if (tiene(d.vistas, "Al mar")) poner("CheckVistasMar", si);
+  if (tiene(d.vistas, "Despejadas")) poner("CheckVistasDestacadas", si);
+  linea("Vistas sin campo en el CRM", lista(d.vistas).filter((x) => ["A la montaña", "Interior"].includes(x)));
+  linea("Orientación", d.orientacion);   // Orientacion no se puede escribir (se guarda vacía)
+  linea("Fachada", d.fachada);
+  linea("Acceso rodado", d.acceso);
+  linea("Suministros", d.suministros);
+  linea("Servicios a 5 min", d.servicios);
 
-    /* Propietario, que el CRM acepta en la misma llamada */
-    Nombre_contacto: Nombre || undefined,
-    Apellidos_contacto: Apellidos || undefined,
-    Telefono_contacto: propietario?.telefono ? String(propietario.telefono).replace(/\D/g, "") : undefined,
-    Email_contacto: propietario?.email || undefined,
+  /* Textos */
+  poner("Observaciones_Publicas", t(d.descripcionPublica));
 
-    /* Ubicación */
-    Numero: d.numero,
-    Puerta: d.puerta,
-    Planta: entero(d.planta),
-    Provincia: d.provincia,
-    Municipio: d.poblacion,
-    Poblacion: d.poblacion,
-
-    /* Económicos y superficies */
-    Precio: precio,
-    Dormitorios: entero(d.dormitorios),
-    Banos: entero(d.banos),
-    Aseos: entero(d.aseos),
-    Antiguedad: entero(d.anio),
-    Metros_Utiles: numero(d.mUtiles),
-    Metros_Construidos: numero(d.mConstruidos),
-    Metros_Parcela: numero(d.mParcela),
-    Metros_Terraza: numero(d.mTerraza),
-    Metros_Fachada: numero(d.escaparate),
-
-    /* Extras: los nuestros son etiquetas, los suyos números o 0/1 */
-    Ascensor: siNo(d.ascensor),
-    Piscina: tieneEn(equip, "Piscina") || tieneEn(d.zonasComunes, "Piscina") || undefined,
-    Jardin: tieneEn(equip, "Jardín") || tieneEn(d.zonasComunes, "Jardines") || undefined,
-    Terraza: tieneEn(equip, "Terraza"),
-    Garaje: tieneEn(equip, "Garaje"),
-    Trastero: tieneEn(equip, "Trastero"),
-    es_atico: d.tipo === "Ático" ? 1 : undefined,
-    CheckVistasMar: tieneEn(d.vistas, "Al mar"),
-    CheckVistasDestacadas: tieneEn(d.vistas, "Despejadas"),
-
-    /* Textos */
-    Observaciones_Publicas: d.descripcionPublica || undefined,
-    Observaciones_Privadas: observacionesPrivadas(ficha) || undefined,
-  };
-
-  /* Fuera los vacíos: el CRM no tiene por qué recibir campos sin valor. */
-  const limpio = Object.fromEntries(
-    Object.entries(datos).filter(([, v]) => v !== undefined && v !== null && v !== "")
-  );
-
-  const faltan = ["Ref_Intranet", "Tipo", "Estado", "Operacion", "Direccion"].filter((k) => !limpio[k]);
-
-  return { ok: faltan.length === 0, faltan, datos: limpio, avisos };
+  /* Solo lo que la API acepta: red de seguridad frente a errores de este fichero */
+  for (const k of Object.keys(p)) {
+    if (!ESCRIBIBLES.has(k)) {
+      delete p[k];
+      avisos.push(`Parámetro no permitido descartado: ${k}`);
+    }
+  }
+  return { parametros: p, lineas, avisos };
 }
 
-/* Propietario → cuerpo de grabar_contacto, para el segundo y siguientes. */
-export function propietarioAContacto(propietario, ficha) {
-  const { Nombre, Apellidos } = partirNombre(propietario?.nombre);
-  const d = ficha?.data || {};
-  const datos = {
-    Nombre: Nombre || undefined,
-    Apellidos: Apellidos || undefined,
-    Movil: propietario?.telefono ? String(propietario.telefono).replace(/\D/g, "") : undefined,
-    Email: propietario?.email || undefined,
-    CIF_NIF: propietario?.dni || undefined,
-    Provincia: d.provincia || undefined,
-    Poblacion: d.poblacion || undefined,
-    CP: d.cp ? entero(d.cp) : undefined,
+/* ----------------------------------------------------------------------------
+   Observaciones privadas: el texto de la ficha va entre marcas, así se puede
+   volver a subir sin duplicarlo ni pisar lo que la oficina haya escrito.
+   IA Gestión guarda las observaciones en HTML (<p>…</p>).
+   ------------------------------------------------------------------------- */
+
+export const MARCA_INI = "── Ficha de captación ──";
+export const MARCA_FIN = "── fin ficha de captación ──";
+
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+export function bloqueFicha(ficha, lineas) {
+  const cabecera = `Captada por ${ficha.agenteName || "—"}${ficha.creada ? ` el ${new Date(ficha.creada).toLocaleDateString("es-ES")}` : ""}`;
+  const cuerpo = [["", cabecera], ...lineas]
+    .map(([k, v]) => `<p>${k ? `<strong>${esc(k)}:</strong> ` : ""}${esc(v)}</p>`)
+    .join("");
+  return `<p><strong>${MARCA_INI}</strong></p>${cuerpo}<p><em>${MARCA_FIN}</em></p>`;
+}
+
+export function componerObservaciones(actual, ficha, lineas) {
+  const bloque = bloqueFicha(ficha, lineas);
+  const prev = String(actual ?? "");
+  const notas = t(ficha?.data?.notasInternas);
+  const notasHtml = notas ? notas.split(/\n+/).map((l) => `<p>${esc(l)}</p>`).join("") : "";
+
+  const re = new RegExp(`<p><strong>${MARCA_INI}</strong></p>[\\s\\S]*?<p><em>${MARCA_FIN}</em></p>`);
+  if (re.test(prev)) return prev.replace(re, bloque);              // volver a subir: se reemplaza solo nuestro bloque
+  return `${prev}${notasHtml}${bloque}`;                           // primera vez: se añade al final, sin tocar lo que hay
+}
+
+/* ----------------------------------------------------------------------------
+   Con conexión: buscar, previsualizar, subir
+   ------------------------------------------------------------------------- */
+
+export async function buscarInmueble(ref, llamar = llamarIagestion) {
+  const r = await llamar("inmueble", { Ref: ref });
+  if (!r.ok) return { ok: false, error: r.error };
+  const inm = r.datos?.inmueble;
+  if (!inm || !inm.Id) return { ok: false, noExiste: true, error: `No hay ningún inmueble con la referencia ${ref} en IA Gestión` };
+  return { ok: true, inmueble: inm };
+}
+
+function resumenInmueble(i) {
+  return { Id: i.Id, Ref_CRM: i.Ref_CRM, Tipo: i.Tipo, Estado: i.Estado, Fecha: i.Fecha, Direccion: i.Direccion };
+}
+
+const fechaValida = (f) => Boolean(f) && !String(f).startsWith("0000");
+
+/* Prepara todo lo que se enviaría, sin escribir nada. */
+export async function prepararSubida(ficha, llamar = llamarIagestion) {
+  const ref = normalizarReferencia(ficha?.data?.referencia);
+  if (!ref) return { ok: false, error: "La ficha no tiene referencia: sin ella no se sabe qué inmueble de IA Gestión actualizar." };
+
+  const b = await buscarInmueble(ref, llamar);
+  if (!b.ok) return { ok: false, error: b.error, noExiste: b.noExiste, ref };
+  const actual = b.inmueble;
+
+  const { parametros, lineas, avisos } = fichaAParametros(ficha, actual);
+  parametros.Observaciones_Privadas = componerObservaciones(actual.Observaciones_Privadas, ficha, lineas);
+
+  if (actual.Estado === "Baja") return { ok: false, error: "El inmueble está de baja en IA Gestión: no se actualiza.", ref, inmueble: resumenInmueble(actual) };
+  if (!fechaValida(actual.Fecha)) {
+    avisos.push("El inmueble no tiene fecha válida en IA Gestión (0000-00-00): se conserva tal cual, no se toca.");
+  }
+  if (["Vendido", "Alquilado", "Reservado"].includes(actual.Estado)) {
+    avisos.push(`El inmueble está en estado "${actual.Estado}" en IA Gestión.`);
+  }
+  return { ok: true, ref, actual, parametros, lineas, avisos, inmueble: resumenInmueble(actual) };
+}
+
+/* Las casillas se envían como 1/0 o "si" y el CRM las guarda como "si"/"no". */
+const unificar = (v) => {
+  const x = String(v ?? "").trim().toLowerCase();
+  return x === "si" ? "1" : x === "no" ? "0" : x;
+};
+
+function coincide(esperado, leido) {
+  const a = unificar(esperado);
+  const b = unificar(leido);
+  if (a === b) return true;
+  const na = Number(a.replace(",", "."));
+  const nb = Number(b.replace(",", "."));
+  return Number.isFinite(na) && Number.isFinite(nb) && Math.abs(na - nb) < 1e-6;
+}
+
+/* Sube la ficha y VERIFICA releyendo el inmueble: la API dice "actualizado"
+   aunque no haya guardado nada. */
+export async function subirFicha(ficha, llamar = llamarIagestion) {
+  const prep = await prepararSubida(ficha, llamar);
+  if (!prep.ok) return prep;
+  const { actual, parametros } = prep;
+
+  const envio = { Id_Inmueble: actual.Id, ...parametros };
+  /* Reenviar la Fecha actual evita que la API la ponga a 0000-00-00. */
+  if (fechaValida(actual.Fecha)) envio.Fecha = actual.Fecha;
+
+  const r = await llamar("actualizar_inmueble", envio);
+  /* Aunque responda mal se relee: a veces falla el aviso pero se aplica. */
+  const b2 = await buscarInmueble(prep.ref, llamar);
+  if (!b2.ok) return { ...prep, ok: false, error: r.ok ? b2.error : (r.error || b2.error) };
+  const nuevo = b2.inmueble;
+
+  const aplicados = [];
+  const noGuardados = [];
+  for (const [k, v] of Object.entries(parametros)) {
+    const col = columnaDe(k);
+    if (k === "Observaciones_Privadas") {
+      (String(nuevo[col] || "").includes(MARCA_INI) ? aplicados : noGuardados).push({ campo: k });
+      continue;
+    }
+    if (k === "Tipo") {
+      /* Se envía "Piso" y se guarda "Pisos": basta con que ya no esté vacío. */
+      (t(nuevo.Tipo) ? aplicados : noGuardados).push({ campo: "Tipo", enviado: v, leido: nuevo.Tipo ?? null });
+      continue;
+    }
+    let esperado = v;
+    if (k === "Estado_General") {
+      esperado = Object.values(ESTADO_GENERAL).find((e) => e.envia === v)?.guarda ?? v;
+    }
+    if (coincide(esperado, nuevo[col])) aplicados.push({ campo: col, valor: nuevo[col] });
+    else noGuardados.push({ campo: col, enviado: v, leido: nuevo[col] ?? null });
+  }
+
+  const fechaIntacta = !fechaValida(actual.Fecha) || nuevo.Fecha === actual.Fecha;
+  return {
+    ...prep,
+    ok: noGuardados.length === 0 && fechaIntacta,
+    respuestaOk: r.ok,
+    aplicados,
+    noGuardados,
+    fechaIntacta,
+    error: !fechaIntacta ? "La fecha del inmueble ha cambiado tras la subida: revisar en IA Gestión." : (r.ok ? undefined : r.error),
   };
-  const limpio = Object.fromEntries(Object.entries(datos).filter(([, v]) => v !== undefined && v !== ""));
-  /* El CRM exige email o móvil. */
-  return { ok: Boolean(limpio.Movil || limpio.Email), datos: limpio };
 }
